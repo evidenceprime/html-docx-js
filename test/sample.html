@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HTML-DOCX test</title>
+  <script src="http://tinymce.cachefly.net/4.1/tinymce.min.js"></script>
+  <script src="vendor/FileSaver.js"></script>
+  <script src="../build/html-docx.js"></script>
+</head>
+<body>
+  <p>Enter/paste your document here:</p>
+  <textarea id="content" cols="60" rows="10"></textarea>
+  <button id="convert">Convert</button>
+  <div id="download-area"></div>
+
+  <script>
+    tinymce.init({
+      selector: '#content',
+      plugins: [
+        "advlist autolink lists link image charmap print preview anchor",
+        "searchreplace visualblocks code fullscreen",
+        "insertdatetime media table contextmenu paste"
+      ],
+      toolbar: "insertfile undo redo | styleselect | bold italic | " +
+        "alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | " +
+        "link image"
+    });
+    document.getElementById('convert').addEventListener('click', function(e) {
+      e.preventDefault();
+      var content = tinymce.get('content').getContent();
+      var converted = htmlDocx.asBlob(content);
+
+      saveAs(converted, 'test.docx');
+
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(converted);
+      link.download = 'document.docx';
+      link.appendChild(
+        document.createTextNode('Click here if your download has not started automatically'));
+      var downloadArea = document.getElementById('download-area');
+      downloadArea.innerHTML = '';
+      downloadArea.appendChild(link);
+    });
+  </script>
+</body>
+</html>

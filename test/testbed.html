@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Mocha Test Runner</title>
+    <link rel="stylesheet" href="./vendor/mocha.css">
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="./vendor/mocha.js"></script>
+    <script src="./vendor/Blob.js"></script>
+    <script>mocha.setup('bdd')</script>
+    <script src="../build/tests.js"></script>
+    <script>
+      if (window.mochaPhantomJS) {
+        mochaPhantomJS.run();
+      } else {
+        mocha.run();
+      }
+    </script>
+  </body>
+</html>

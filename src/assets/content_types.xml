@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="xml" ContentType=
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml" />
+  <Default Extension="rels" ContentType=
+      "application/vnd.openxmlformats-package.relationships+xml" />
+  <Default Extension="htm" ContentType="text/html" />
+</Types>

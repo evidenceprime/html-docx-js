@@ -1,0 +1,41 @@
+{
+  "name": "html-docx.js",
+  "version": "0.1.0",
+  "description": "Converts HTML documents to DOCX in the browser",
+  "main": "src/index.coffee",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com:evidenceprime/html-docx-js.git"
+  },
+  "scripts": {
+    "test": "gulp test"
+  },
+  "browserify": {
+    "transform": [
+      "coffeeify",
+      "brfs"
+    ]
+  },
+  "author": "Artur Nowak <artur.nowak@evidenceprime.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "brfs": "^1.1.2",
+    "browserify": "^4.2.0",
+    "chai": "^1.9.1",
+    "coffeeify": "^0.6.0",
+    "gulp": "^3.8.5",
+    "gulp-mocha": "^0.4.1",
+    "gulp-mocha-phantomjs": "^0.3.0",
+    "gulp-notify": "^1.4.0",
+    "gulp-util": "^2.2.19",
+    "mocha": "^1.20.1",
+    "pretty-hrtime": "^0.2.1",
+    "sinon": "^1.10.2",
+    "sinon-chai": "^2.5.0",
+    "vinyl-source-stream": "^0.1.1",
+    "watchify": "^0.10.2"
+  },
+  "dependencies": {
+    "jszip": "^2.3.0"
+  }
+}

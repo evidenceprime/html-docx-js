@@ -1,0 +1,69 @@
+{
+    "no_tabs": {
+        "level": "ignore",
+        "comment": "Checked by other linter"
+    },
+    "no_trailing_whitespace": {
+        "level": "ignore",
+        "allowed_in_comments": false,
+        "comment": "Checked by other linter"
+    },
+    "max_line_length": {
+        "value": 100,
+        "level": "ignore",
+        "comment": "Checked by other linter"
+    },
+    "camel_case_classes": {
+        "level": "error"
+    },
+    "indentation": {
+        "value": 2,
+        "level": "error"
+    },
+    "no_implicit_braces": {
+        "level": "ignore"
+    },
+    "no_trailing_semicolons": {
+        "level": "error"
+    },
+    "no_plusplus": {
+        "level": "ignore"
+    },
+    "no_throwing_strings": {
+        "level": "error"
+    },
+    "cyclomatic_complexity": {
+        "value": 10,
+        "level": "warn"
+    },
+    "no_backticks": {
+        "level": "error"
+    },
+    "line_endings": {
+        "level": "ignore",
+        "value": "unix",
+        "comment": "Checked by other linter"
+    },
+    "no_implicit_parens": {
+        "level": "ignore"
+    },
+    "no_empty_param_list": {
+        "level": "error"
+    },
+    "space_operators": {
+        "level": "warn"
+    },
+    "duplicate_key": {
+        "level": "error"
+    },
+    "newlines_after_classes": {
+        "value": 3,
+        "level": "ignore"
+    },
+    "no_stand_alone_at": {
+        "level": "ignore"
+    },
+    "coffeescript_error": {
+        "level": "error"
+    }
+}
