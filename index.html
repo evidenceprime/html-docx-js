@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>html-docx-js by evidenceprime</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>html-docx-js</h1>
+        <p>Converts HTML documents to DOCX in the browser</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/evidenceprime/html-docx-js" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/evidenceprime/html-docx-js/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/evidenceprime/html-docx-js/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <h1>
+<a name="html-docx-js" class="anchor" href="#html-docx-js"><span class="octicon octicon-link"></span></a>html-docx-js</h1>
+
+<p>This is a very small library that is capable of converting HTML documents to DOCX format that
+is used by Microsoft Word 2007 and onward. It manages to perform the conversion in the browser by
+using mechanism called 'altchunk'. In a nutshell, it allows embedding content in a different markup
+language. After Word opens such file, it converts the external content to Word Processing ML (this
+is how the markup language of DOCX files is called) and replaces the reference.</p>
+
+<p>Altchunks were not supported by Microsoft Word for Mac 2008 and are not supported by LibreOffice.</p>
+
+<h2>
+<a name="compatibility" class="anchor" href="#compatibility"><span class="octicon octicon-link"></span></a>Compatibility</h2>
+
+<p>This library should work on any modern browser that supports <code>Blob</code>s (either natively or via 
+<a href="https://github.com/eligrey/Blob.js/">Blob.js</a>). It was tested on Google Chrome 36, Safari 7 and
+Internet Explorer 10.</p>
+
+<p>It also works on Node.js (tested on v0.10.12) using <code>Buffer</code> instead of <code>Blob</code>.</p>
+
+<h2>
+<a name="usage-and-demo" class="anchor" href="#usage-and-demo"><span class="octicon octicon-link"></span></a>Usage and demo</h2>
+
+<p>Simple demo is available as <code>test/sample.html</code> in the repository and 
+<a href="http://evidenceprime.github.io/html-docx-js/sample.html">online</a>.</p>
+
+<p><code>html-docx-js</code> is distributed as 'standalone' Browserify module (UMD). You can <code>require</code> it as
+<code>html-docx</code>. If no module loader is available, it will register itself as <code>window.htmlDocx</code>.
+See <code>test/sample.html</code> for details.</p>
+
+<h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
+
+<p>Copyright (c) 2014 Evidence Prime, Inc.
+See the LICENSE file for license rights and limitations (MIT).</p>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/evidenceprime">evidenceprime</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
