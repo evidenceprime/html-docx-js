@@ -4,7 +4,7 @@
   "description": "Converts HTML documents to DOCX in the browser",
   "repository": {
     "type": "git",
-    "url": "git://github.com:evidenceprime/html-docx-js.git"
+    "url": "git://github.com/evidenceprime/html-docx-js.git"
   },
   "main": "dist/html-docx.js",
   "moduleType": [

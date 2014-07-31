@@ -1,11 +1,11 @@
 {
-  "name": "html-docx.js",
+  "name": "html-docx-js",
   "version": "0.1.0",
   "description": "Converts HTML documents to DOCX in the browser",
   "main": "src/index.coffee",
   "repository": {
     "type": "git",
-    "url": "git://github.com:evidenceprime/html-docx-js.git"
+    "url": "git://github.com/evidenceprime/html-docx-js.git"
   },
   "scripts": {
     "test": "gulp test"
