@@ -1,0 +1,13 @@
+{
+  "project_id": "HTML-DOCX.js",
+  "conduit_uri": "https://phabricator.lab.evidenceprime.com",
+  "history.immutable": false,
+  "arc.land.onto.default": "origin",
+  "arc.feature.start.default": "origin",
+  "load": [
+    "arcanist-coffee-lib",
+    "arcanist-gdt-lib"
+  ],
+  "lint.engine": "GdtLintEngine",
+  "lint.coffeelint.config": "coffeelint.json"
+}
