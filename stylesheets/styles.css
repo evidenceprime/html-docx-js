@@ -756,6 +756,11 @@ header p {
   font-size: 14px;
   background-color: #FFE788;
 }
+#banner .demo {
+  position: fixed;
+  left: 50%;
+  margin-left: -192px;
+}
 #banner .downloads {
   float: right;
   margin: 0 45px 0 0;
