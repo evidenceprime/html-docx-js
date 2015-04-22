@@ -24,6 +24,7 @@
     "chai": "^1.9.1",
     "coffeeify": "^0.6.0",
     "gulp": "^3.8.5",
+    "gulp-lodash-template": "^0.1.0",
     "gulp-mocha": "^0.4.1",
     "gulp-mocha-phantomjs": "^0.3.0",
     "gulp-notify": "^1.4.0",
@@ -36,6 +37,7 @@
     "watchify": "^0.10.2"
   },
   "dependencies": {
-    "jszip": "^2.3.0"
+    "jszip": "^2.3.0",
+    "lodash.assign": "^3.1.0"
   }
 }

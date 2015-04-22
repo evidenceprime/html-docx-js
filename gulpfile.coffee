@@ -7,6 +7,7 @@ prettyHrtime = require 'pretty-hrtime'
 notify = require 'gulp-notify'
 mocha = require 'gulp-mocha'
 mochaPhantomJS = require 'gulp-mocha-phantomjs'
+template = require 'gulp-lodash-template'
 
 startTime = null
 logger =
@@ -24,6 +25,9 @@ handleErrors = ->
     message: '<%= error.message %>'
   .apply this, arguments
   @emit 'end'
+
+precompileTemplates = ->
+  gulp.src('src/templates/*.tpl').pipe(template commonjs: true).pipe(gulp.dest('src/templates'))
 
 build = (test) ->
   [output, entry, options] = if test
@@ -48,6 +52,7 @@ build = (test) ->
   if global.isWatching
     bundler.on 'update', bundle
 
+  precompileTemplates()
   bundle()
 
 testsBundle = './test/index.coffee'
@@ -57,6 +62,7 @@ gulp.task 'build', -> build()
 gulp.task 'watch', ['setWatch', 'build']
 
 gulp.task 'test-node', (growl = false) ->
+  precompileTemplates()
   gulp.src(testsBundle, read: false).pipe mocha {reporter: 'spec', growl}
 gulp.task 'test-node-watch', ->
   sources = ['src/**', 'test/**']

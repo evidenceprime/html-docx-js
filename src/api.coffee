@@ -3,7 +3,7 @@ internal = require './internal'
 fs = require 'fs'
 
 module.exports =
-  asBlob: (html) ->
+  asBlob: (html, options) ->
     zip = new JSZip()
-    internal.addFiles(zip, html)
+    internal.addFiles(zip, html, options)
     internal.generateDocument(zip)
