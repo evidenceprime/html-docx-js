@@ -15,7 +15,10 @@ describe 'Adding files', ->
         folder: (name) ->
           data[name] = {}
           zip data[name]
-    internal.addFiles zip(@data), 'foobar'
+    sinon.stub(internal, 'renderDocumentFile').returns '<document />'
+    internal.addFiles zip(@data), 'foobar', someOption: true
+  afterEach ->
+    internal.renderDocumentFile.restore()
 
   it 'should add file for embedded content types', ->
     expect(@data['[Content_Types].xml']).to.be.defined
@@ -33,14 +36,27 @@ describe 'Adding files', ->
     expect(@data.word['afchunk.htm']).to.be.defined
     expect(String @data.word['afchunk.htm']).to.equal 'foobar'
 
-  it 'should add Word file with altChunk element', ->
+  it 'should render the Word document and add its contents', ->
+    expect(internal.renderDocumentFile).to.have.been.calledWith someOption: true
     expect(@data.word['document.xml']).to.be.defined
-    expect(String @data.word['document.xml']).to.match /altChunk r:id="htmlChunk"/
+    expect(String @data.word['document.xml']).to.match /<document \/>/
 
   it 'should add relationship file to link between Word and HTML files', ->
     expect(@data.word._rels['document.xml.rels']).to.be.defined
     expect(String @data.word._rels['document.xml.rels']).to
       .match /Target="\/word\/afchunk.htm" Id="htmlChunk"/
+
+describe 'Rendering the Word document', ->
+  it 'should return a Word Processing ML file that embeds the altchunk', ->
+    expect(internal.renderDocumentFile()).to.match /altChunk r:id="htmlChunk"/
+
+  it 'should set portrait orientation and letter size if no formatting options are passed', ->
+    expect(internal.renderDocumentFile()).to
+      .match /<w:pgSz w:w="12240" w:h="15840" w:orient="portrait" \/>/
+
+  it 'should set landscape orientation and letter size if orientation is set to landscape', ->
+    expect(internal.renderDocumentFile(orientation: 'landscape')).to
+      .match /<w:pgSz w:w="15840" w:h="12240" w:orient="landscape" \/>/
 
 describe 'Generating the document', ->
   beforeEach ->

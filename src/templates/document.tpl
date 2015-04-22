@@ -3,5 +3,8 @@
   <w:body>
     <w:altChunk r:id="htmlChunk" xmlns:r=
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships" />
+    <w:sectPr>
+      <w:pgSz w:w="<%= width %>" w:h="<%= height %>" w:orient="<%= orient %>" />
+    </w:sectPr>
   </w:body>
 </w:document>

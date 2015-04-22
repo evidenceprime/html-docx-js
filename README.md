@@ -34,6 +34,15 @@ containing the output file.
     var converted = htmlDocx.asBlob(content);
     saveAs(converted, 'test.docx');
 
+`asBlob` can take additional options for controlling page setup for the document:
+
+* `orientation`: `landscape` or `portrait` (default)
+
+For example:
+
+    var converted = htmlDocx.asBlob(content, {orientation: 'landscape'});
+    saveAs(converted, 'test.docx');
+
 **IMPORTANT**: please pass a complete, valid HTML (including DOCTYPE, `html` and `body` tags).
 This may be less convenient, but gives you possibility of including CSS rules in `style` tags.
 
@@ -44,5 +53,5 @@ See `test/sample.html` for details.
 License
 -------
 
-Copyright (c) 2014 Evidence Prime, Inc.
+Copyright (c) 2015 Evidence Prime, Inc.
 See the LICENSE file for license rights and limitations (MIT).
