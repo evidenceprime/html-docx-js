@@ -1,6 +1,6 @@
 fs = require 'fs'
 documentTemplate = require './templates/document'
-_ = assign: require 'lodash.assign'
+_ = merge: require 'lodash.merge'
 
 module.exports =
   generateDocument: (zip) ->
@@ -15,10 +15,20 @@ module.exports =
         "Consider adding Blob.js shim"
 
   renderDocumentFile: (documentOptions = {}) ->
-    templateData = _.assign {},
+    templateData = _.merge margins:
+      top: 1440
+      right: 1440
+      bottom: 1440
+      left: 1440
+      header: 720
+      footer: 720
+      gutter: 0
+    ,
       switch documentOptions.orientation
         when 'landscape' then height: 12240, width: 15840, orient: 'landscape'
         else width: 12240, height: 15840, orient: 'portrait'
+    ,
+      margins: documentOptions.margins
 
     documentTemplate(templateData)
 

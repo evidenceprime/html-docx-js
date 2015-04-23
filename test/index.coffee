@@ -58,6 +58,17 @@ describe 'Rendering the Word document', ->
     expect(internal.renderDocumentFile(orientation: 'landscape')).to
       .match /<w:pgSz w:w="15840" w:h="12240" w:orient="landscape" \/>/
 
+  it 'should set default margins if no options were passed', ->
+    expect(internal.renderDocumentFile()).to.match /<w:pgMar w:top="1440"/
+    expect(internal.renderDocumentFile(orientation: 'landscape')).to.match /<w:pgMar w:top="1440"/
+
+  it 'should set the margin if it was specified as an option', ->
+    expect(internal.renderDocumentFile(margins: top: 123)).to.match /<w:pgMa[^>]*w:top="123"/
+
+  it 'should leave default values for margins that are not defined in the options', ->
+    expect(internal.renderDocumentFile(margins: left: 123)).to.match /<w:pgMar[^>]*w:left="123"/
+    expect(internal.renderDocumentFile(margins: left: 123)).to.match /<w:pgMar[^>]*w:top="1440"/
+
 describe 'Generating the document', ->
   beforeEach ->
     @zip = generate: sinon.stub().returns 'DEADBEEF'
