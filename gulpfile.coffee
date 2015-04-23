@@ -26,9 +26,6 @@ handleErrors = ->
   .apply this, arguments
   @emit 'end'
 
-precompileTemplates = ->
-  gulp.src('src/templates/*.tpl').pipe(template commonjs: true).pipe(gulp.dest('src/templates'))
-
 build = (test) ->
   [output, entry, options] = if test
     ['tests.js', './test/index', debug: true]
@@ -38,11 +35,12 @@ build = (test) ->
   bundleMethod = if global.isWatching then watchify else browserify
   bundler = bundleMethod
     entries: [entry]
-    extensions: ['.coffee']
+    extensions: ['.coffee', '.tpl']
 
   bundle = ->
     logger.start()
     bundler
+      .transform 'jstify', engine: 'lodash-micro', minifierOpts: false
       .bundle options
       .on 'error', handleErrors
       .pipe vinyl(output)
@@ -52,7 +50,6 @@ build = (test) ->
   if global.isWatching
     bundler.on 'update', bundle
 
-  precompileTemplates()
   bundle()
 
 testsBundle = './test/index.coffee'
@@ -62,7 +59,7 @@ gulp.task 'build', -> build()
 gulp.task 'watch', ['setWatch', 'build']
 
 gulp.task 'test-node', (growl = false) ->
-  precompileTemplates()
+  gulp.src('src/templates/*.tpl').pipe(template commonjs: true).pipe(gulp.dest('src/templates'))
   gulp.src(testsBundle, read: false).pipe mocha {reporter: 'spec', growl}
 gulp.task 'test-node-watch', ->
   sources = ['src/**', 'test/**']
