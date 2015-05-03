@@ -7,7 +7,8 @@ using a feature called 'altchunks'. In a nutshell, it allows embedding content i
 language. After Word opens such file, it converts the external content to Word Processing ML (this
 is how the markup language of DOCX files is called) and replaces the reference.
 
-Altchunks were not supported by Microsoft Word for Mac 2008 and are not supported by LibreOffice.
+Altchunks were not supported by Microsoft Word for Mac 2008 and are not supported by LibreOffice and
+Google Docs.
 
 Compatibility
 -------------
