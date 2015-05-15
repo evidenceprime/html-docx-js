@@ -8,9 +8,13 @@
   <script src="../build/html-docx.js"></script>
 </head>
 <body>
-  <h1>Demo for <a href="http://evidenceprime.github.io/html-docx-js/">html-docx-js</a></h1>
   <p>Enter/paste your document here:</p>
   <textarea id="content" cols="60" rows="10"></textarea>
+  <div class="page-orientation">
+    <span>Page orientation:</span>
+    <label><input type="radio" name="orientation" value="portrait" checked>Portrait</label>
+    <label><input type="radio" name="orientation" value="landscape">Landscape</label>
+  </div>
   <button id="convert">Convert</button>
   <div id="download-area"></div>
 
@@ -29,7 +33,8 @@
     document.getElementById('convert').addEventListener('click', function(e) {
       e.preventDefault();
       var content = tinymce.get('content').getContent();
-      var converted = htmlDocx.asBlob(content);
+      var orientation = document.querySelector('.page-orientation input:checked').value;
+      var converted = htmlDocx.asBlob(content, {orientation: orientation});
 
       saveAs(converted, 'test.docx');
 
