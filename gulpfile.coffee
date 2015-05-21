@@ -8,6 +8,8 @@ notify = require 'gulp-notify'
 mocha = require 'gulp-mocha'
 mochaPhantomJS = require 'gulp-mocha-phantomjs'
 template = require 'gulp-lodash-template'
+coffee = require 'gulp-coffee'
+del = require 'del'
 
 startTime = null
 logger =
@@ -54,12 +56,26 @@ build = (test) ->
 
 testsBundle = './test/index.coffee'
 
+clean = (cb) -> del 'build', cb
+
+gulp.task 'clean', clean
 gulp.task 'setWatch', -> global.isWatching = true
 gulp.task 'build', -> build()
 gulp.task 'watch', ['setWatch', 'build']
 
+buildNode = (compileCoffee = true) ->
+  logger.start()
+  gulp.src('src/**/*', base: 'src').pipe(gulp.dest('build'))
+  gulp.src('src/templates/*.tpl').pipe(template commonjs: true).pipe(gulp.dest('build/templates'))
+  if compileCoffee
+    gulp.src('src/**/*.coffee').pipe(coffee bare: true)
+      .on('error', handleErrors).on('end', logger.end).pipe(gulp.dest('build'))
+  else
+    logger.end()
+
+gulp.task 'build-node', buildNode
 gulp.task 'test-node', (growl = false) ->
-  gulp.src('src/templates/*.tpl').pipe(template commonjs: true).pipe(gulp.dest('src/templates'))
+  buildNode(false)
   gulp.src(testsBundle, read: false).pipe mocha {reporter: 'spec', growl}
 gulp.task 'test-node-watch', ->
   sources = ['src/**', 'test/**']
