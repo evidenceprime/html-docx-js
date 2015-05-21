@@ -29,6 +29,9 @@ to a Flash-based approach (such as [Downloadify](https://github.com/dcneiner/Dow
 Our demo does not include this workaround to keep things simple, so it will not work on Safari at
 this point of time.
 
+You can also find a sample for using it in Node.js environment
+[here](https://github.com/evidenceprime/html-docx-js-node-sample).
+
 To generate DOCX, simply pass a HTML document to `asBlob` method to receive `Blob` (or `Buffer`)
 containing the output file.
 
