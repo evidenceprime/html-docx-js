@@ -1,5 +1,6 @@
 fs = require 'fs'
 documentTemplate = require './templates/document'
+utils = require './utils'
 _ = merge: require 'lodash.merge'
 
 module.exports =
@@ -37,6 +38,6 @@ module.exports =
     zip.folder('_rels').file '.rels', fs.readFileSync __dirname + '/assets/rels.xml'
     zip.folder 'word'
       .file 'document.xml', @renderDocumentFile documentOptions
-      .file 'afchunk.htm', htmlSource
+      .file 'afchunk.mht', utils.getMHTdocument htmlSource
       .folder '_rels'
         .file 'document.xml.rels', fs.readFileSync __dirname + '/assets/document.xml.rels'
