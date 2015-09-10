@@ -66,10 +66,11 @@ describe 'Coverting HTML to MHT', ->
     <img src="data:image/png;base64,PHN2ZyB...">
     <img src="data:image/gif;base64,PHN2ZyB..."></p>'
     imageParts = utils._prepareImageParts(htmlSource).imageContentParts
-    expect(imageParts.length).to.equal 3
-    expect(imageParts[0]).to.match /Content-Type: image\/jpeg/
-    expect(imageParts[1]).to.match /Content-Transfer-Encoding: base64/
-    expect(imageParts[2]).to.have.string "Content-Location: file://fake/image2.gif"
+    expect(imageParts).to.have.length 3
+    imageParts.forEach (image, index) ->
+      expect(image).to.match /Content-Type: image\/(jpeg|png|gif)/
+      expect(image).to.match /Content-Transfer-Encoding: base64/
+      expect(image).to.have.string "Content-Location: file://fake/image#{index}."
 
   it 'should replace = signs to 3D=', ->
     htmlSource = '<body style="width: 100%">This = 0</body>'

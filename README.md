@@ -23,10 +23,8 @@ It also works on Node.js (tested on v0.10.12) using `Buffer` instead of `Blob`.
 Images Support
 -------------
 
-This library supports only inlined base64 images (sourced via DATA URI). But it is easy to covert a
-regular image (source from static folder) on the fly. If you need example of coverting images sourced
-from static folder on your server to base64 on the fly you can [checkout a demo page source](https://github.com/evidenceprime/html-docx-js/blob/master/test/sample.html) where canvas is used
-for such covertion (see function `convertImagesToBase64`).
+This library supports only inlined base64 images (sourced via DATA URI). But it is easy to convert a
+regular image (sourced from static folder) on the fly. If you need an example of such conversion you can [checkout a demo page source](https://github.com/evidenceprime/html-docx-js/blob/master/test/sample.html) (see function `convertImagesToBase64`).
 
 Usage and demo
 --------------
