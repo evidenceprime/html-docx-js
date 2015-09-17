@@ -9,7 +9,11 @@
 </head>
 <body>
   <p>Enter/paste your document here:</p>
-  <textarea id="content" cols="60" rows="10"></textarea>
+  <textarea id="content" cols="60" rows="10">
+    <p>We all live in a yellow submarine, yellow submarine, yellow submarine, yellow submarine</p>
+    <p>Images can also be exported if you source them as base64 DATA URI.</p>
+    <img src="cat.jpg">
+  </textarea>
   <div class="page-orientation">
     <span>Page orientation:</span>
     <label><input type="radio" name="orientation" value="portrait" checked>Portrait</label>
@@ -32,7 +36,13 @@
     });
     document.getElementById('convert').addEventListener('click', function(e) {
       e.preventDefault();
-      var content = tinymce.get('content').getContent();
+      convertImagesToBase64()
+      // for demo purposes only we are using below workaround with getDoc() and manual
+      // HTML string preparation instead of simple calling the .getContent(). Becasue
+      // .getContent() returns HTML string of the original document and not a modified
+      // one whereas getDoc() returns realtime document - exactly what we need.
+      var contentDocument = tinymce.get('content').getDoc();
+      var content = '<!DOCTYPE html>' + contentDocument.documentElement.outerHTML;
       var orientation = document.querySelector('.page-orientation input:checked').value;
       var converted = htmlDocx.asBlob(content, {orientation: orientation});
 
@@ -47,6 +57,26 @@
       downloadArea.innerHTML = '';
       downloadArea.appendChild(link);
     });
+
+    function convertImagesToBase64 () {
+      contentDocument = tinymce.get('content').getDoc();
+      var regularImages = contentDocument.querySelectorAll("img");
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      [].forEach.call(regularImages, function (imgElement) {
+        // preparing canvas for drawing
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = imgElement.width;
+        canvas.height = imgElement.height;
+
+        ctx.drawImage(imgElement, 0, 0);
+        // by default toDataURL() produces png image, but you can also export to jpeg
+        // checkout function's documentation for more details
+        var dataURL = canvas.toDataURL();
+        imgElement.setAttribute('src', dataURL);
+      })
+      canvas.remove();
+    }
   </script>
 </body>
 </html>
