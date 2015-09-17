@@ -1,3 +1,7 @@
+## 0.3.0 (Sep 17, 2015)
+
+* Added support for embedded images. Please see `README.md` for details.
+
 ## 0.2.2 (May 21, 2015)
 
 * Corrected publishing as Node.js module (`package.json` now contains correct main entry point)

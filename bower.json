@@ -1,6 +1,6 @@
 {
   "name": "html-docx-js",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Converts HTML documents to DOCX in the browser",
   "repository": {
     "type": "git",
@@ -18,7 +18,8 @@
     "html"
   ],
   "authors": [
-    "Artur Nowak <artur.nowak@evidenceprime.com>"
+    "Artur Nowak <artur.nowak@evidenceprime.com>",
+    "Ievgen Martynov <ievgen.martynov@evidenceprime.com>"
   ],
   "license": "MIT",
   "ignore": [
