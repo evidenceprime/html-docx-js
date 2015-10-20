@@ -1,9 +1,9 @@
 JSZip = require 'jszip'
 internal = require './internal'
-juice = require 'juice'
+cssInliner = require './utils/cssInliner'
 
 module.exports =
   asBlob: (html, options) ->
     zip = new JSZip()
-    internal.addFiles(zip, juice(html), options)
+    internal.addFiles(zip, cssInliner(html), options)
     internal.generateDocument(zip)

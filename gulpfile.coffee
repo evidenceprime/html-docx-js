@@ -32,7 +32,7 @@ build = (test) ->
   [output, entry, options] = if test
     ['tests.js', './test/index', debug: true]
   else
-    ['html-docx.js', './src/api', standalone: 'html-docx']
+    ['html-docx.js', './src/api_client', standalone: 'html-docx']
 
   bundleMethod = if global.isWatching then watchify else browserify
   bundler = bundleMethod
