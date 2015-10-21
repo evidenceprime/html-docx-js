@@ -3,7 +3,7 @@ _ =
   compose: require 'lodash.flowright'
   curry: require 'lodash.curry'
 
-forEach = _.curry (list, fn) ->
+forEach = _.curry (fn, list) ->
   [].forEach.call list, fn
 
 STYLE_TAG_REG_EXP = /<style[^>]*>([\s\S]+)<\/style>/
@@ -45,24 +45,25 @@ _getDeclarations = (CSSRule) ->
     result[stylesObj[idx]] = stylesObj[stylesObj[idx]]
   result
 
-_getTargetsList = (doc, CSSRule) ->
+_getTargetsList = _.curry (doc, CSSRule) ->
   selector = CSSRule.selectorText
   return [] unless selector
   [].slice.call doc.querySelectorAll selector
 
-_applyStylesToElement = (declarations, el) ->
+_applyStylesToElement = _.curry (declarations, el) ->
   for declarationName, declarationVal of declarations
     el.style[declarationName] = declarationVal
+
+_CSSRuleApplicator = _.compose forEach, _.compose _applyStylesToElement, _getDeclarations
 
 module.exports = (htmlSource) ->
   stylesObj = _parseStyles htmlSource
   return htmlSource if stylesObj.cssRules.length is 0
 
   doc = _convertToHTMLDocument htmlSource
+
   stylesObj.cssRules.forEach (CSSRule) ->
-    declarations = _getDeclarations CSSRule
     targets = _getTargetsList doc, CSSRule
-    targets.forEach (target) ->
-      _applyStylesToElement declarations, target
+    _CSSRuleApplicator(CSSRule)(targets)
 
   doc.documentElement.outerHTML
