@@ -1296,6 +1296,346 @@ module.exports = isArray || function (val) {
 };
 
 },{}],5:[function(_dereq_,module,exports){
+exports.endianness = function () { return 'LE' };
+
+exports.hostname = function () {
+    if (typeof location !== 'undefined') {
+        return location.hostname
+    }
+    else return '';
+};
+
+exports.loadavg = function () { return [] };
+
+exports.uptime = function () { return 0 };
+
+exports.freemem = function () {
+    return Number.MAX_VALUE;
+};
+
+exports.totalmem = function () {
+    return Number.MAX_VALUE;
+};
+
+exports.cpus = function () { return [] };
+
+exports.type = function () { return 'Browser' };
+
+exports.release = function () {
+    if (typeof navigator !== 'undefined') {
+        return navigator.appVersion;
+    }
+    return '';
+};
+
+exports.networkInterfaces
+= exports.getNetworkInterfaces
+= function () { return {} };
+
+exports.arch = function () { return 'javascript' };
+
+exports.platform = function () { return 'browser' };
+
+exports.tmpdir = exports.tmpDir = function () {
+    return '/tmp';
+};
+
+exports.EOL = '\n';
+
+},{}],6:[function(_dereq_,module,exports){
+(function (process){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// resolves . and .. elements in a path array with directory names there
+// must be no slashes, empty elements, or device names (c:\) in the array
+// (so also no leading and trailing slashes - it does not distinguish
+// relative and absolute paths)
+function normalizeArray(parts, allowAboveRoot) {
+  // if the path tries to go above the root, `up` ends up > 0
+  var up = 0;
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var last = parts[i];
+    if (last === '.') {
+      parts.splice(i, 1);
+    } else if (last === '..') {
+      parts.splice(i, 1);
+      up++;
+    } else if (up) {
+      parts.splice(i, 1);
+      up--;
+    }
+  }
+
+  // if the path is allowed to go above the root, restore leading ..s
+  if (allowAboveRoot) {
+    for (; up--; up) {
+      parts.unshift('..');
+    }
+  }
+
+  return parts;
+}
+
+// Split a filename into [root, dir, basename, ext], unix version
+// 'root' is just a slash, or nothing.
+var splitPathRe =
+    /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
+var splitPath = function(filename) {
+  return splitPathRe.exec(filename).slice(1);
+};
+
+// path.resolve([from ...], to)
+// posix version
+exports.resolve = function() {
+  var resolvedPath = '',
+      resolvedAbsolute = false;
+
+  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+    var path = (i >= 0) ? arguments[i] : process.cwd();
+
+    // Skip empty and invalid entries
+    if (typeof path !== 'string') {
+      throw new TypeError('Arguments to path.resolve must be strings');
+    } else if (!path) {
+      continue;
+    }
+
+    resolvedPath = path + '/' + resolvedPath;
+    resolvedAbsolute = path.charAt(0) === '/';
+  }
+
+  // At this point the path should be resolved to a full absolute path, but
+  // handle relative paths to be safe (might happen when process.cwd() fails)
+
+  // Normalize the path
+  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
+    return !!p;
+  }), !resolvedAbsolute).join('/');
+
+  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
+};
+
+// path.normalize(path)
+// posix version
+exports.normalize = function(path) {
+  var isAbsolute = exports.isAbsolute(path),
+      trailingSlash = substr(path, -1) === '/';
+
+  // Normalize the path
+  path = normalizeArray(filter(path.split('/'), function(p) {
+    return !!p;
+  }), !isAbsolute).join('/');
+
+  if (!path && !isAbsolute) {
+    path = '.';
+  }
+  if (path && trailingSlash) {
+    path += '/';
+  }
+
+  return (isAbsolute ? '/' : '') + path;
+};
+
+// posix version
+exports.isAbsolute = function(path) {
+  return path.charAt(0) === '/';
+};
+
+// posix version
+exports.join = function() {
+  var paths = Array.prototype.slice.call(arguments, 0);
+  return exports.normalize(filter(paths, function(p, index) {
+    if (typeof p !== 'string') {
+      throw new TypeError('Arguments to path.join must be strings');
+    }
+    return p;
+  }).join('/'));
+};
+
+
+// path.relative(from, to)
+// posix version
+exports.relative = function(from, to) {
+  from = exports.resolve(from).substr(1);
+  to = exports.resolve(to).substr(1);
+
+  function trim(arr) {
+    var start = 0;
+    for (; start < arr.length; start++) {
+      if (arr[start] !== '') break;
+    }
+
+    var end = arr.length - 1;
+    for (; end >= 0; end--) {
+      if (arr[end] !== '') break;
+    }
+
+    if (start > end) return [];
+    return arr.slice(start, end - start + 1);
+  }
+
+  var fromParts = trim(from.split('/'));
+  var toParts = trim(to.split('/'));
+
+  var length = Math.min(fromParts.length, toParts.length);
+  var samePartsLength = length;
+  for (var i = 0; i < length; i++) {
+    if (fromParts[i] !== toParts[i]) {
+      samePartsLength = i;
+      break;
+    }
+  }
+
+  var outputParts = [];
+  for (var i = samePartsLength; i < fromParts.length; i++) {
+    outputParts.push('..');
+  }
+
+  outputParts = outputParts.concat(toParts.slice(samePartsLength));
+
+  return outputParts.join('/');
+};
+
+exports.sep = '/';
+exports.delimiter = ':';
+
+exports.dirname = function(path) {
+  var result = splitPath(path),
+      root = result[0],
+      dir = result[1];
+
+  if (!root && !dir) {
+    // No dirname whatsoever
+    return '.';
+  }
+
+  if (dir) {
+    // It has a dirname, strip trailing slash
+    dir = dir.substr(0, dir.length - 1);
+  }
+
+  return root + dir;
+};
+
+
+exports.basename = function(path, ext) {
+  var f = splitPath(path)[2];
+  // TODO: make this comparison case-insensitive on windows?
+  if (ext && f.substr(-1 * ext.length) === ext) {
+    f = f.substr(0, f.length - ext.length);
+  }
+  return f;
+};
+
+
+exports.extname = function(path) {
+  return splitPath(path)[3];
+};
+
+function filter (xs, f) {
+    if (xs.filter) return xs.filter(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        if (f(xs[i], i, xs)) res.push(xs[i]);
+    }
+    return res;
+}
+
+// String.prototype.substr - negative index don't work in IE8
+var substr = 'ab'.substr(-1) === 'b'
+    ? function (str, start, len) { return str.substr(start, len) }
+    : function (str, start, len) {
+        if (start < 0) start = str.length + start;
+        return str.substr(start, len);
+    }
+;
+
+}).call(this,_dereq_("FWaASH"))
+},{"FWaASH":7}],7:[function(_dereq_,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+    && window.setImmediate;
+    var canPost = typeof window !== 'undefined'
+    && window.postMessage && window.addEventListener
+    ;
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
+    if (canPost) {
+        var queue = [];
+        window.addEventListener('message', function (ev) {
+            var source = ev.source;
+            if ((source === window || source === null) && ev.data === 'process-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('process-tick', '*');
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+}
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+
+},{}],8:[function(_dereq_,module,exports){
 'use strict';
 // private property
 var _keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -1367,7 +1707,7 @@ exports.decode = function(input, utf8) {
 
 };
 
-},{}],6:[function(_dereq_,module,exports){
+},{}],9:[function(_dereq_,module,exports){
 'use strict';
 function CompressedObject() {
     this.compressedSize = 0;
@@ -1397,7 +1737,7 @@ CompressedObject.prototype = {
 };
 module.exports = CompressedObject;
 
-},{}],7:[function(_dereq_,module,exports){
+},{}],10:[function(_dereq_,module,exports){
 'use strict';
 exports.STORE = {
     magic: "\x00\x00",
@@ -1412,7 +1752,7 @@ exports.STORE = {
 };
 exports.DEFLATE = _dereq_('./flate');
 
-},{"./flate":12}],8:[function(_dereq_,module,exports){
+},{"./flate":15}],11:[function(_dereq_,module,exports){
 'use strict';
 
 var utils = _dereq_('./utils');
@@ -1516,7 +1856,7 @@ module.exports = function crc32(input, crc) {
 };
 // vim: set shiftwidth=4 softtabstop=4:
 
-},{"./utils":25}],9:[function(_dereq_,module,exports){
+},{"./utils":28}],12:[function(_dereq_,module,exports){
 'use strict';
 var utils = _dereq_('./utils');
 
@@ -1625,7 +1965,7 @@ DataReader.prototype = {
 };
 module.exports = DataReader;
 
-},{"./utils":25}],10:[function(_dereq_,module,exports){
+},{"./utils":28}],13:[function(_dereq_,module,exports){
 'use strict';
 exports.base64 = false;
 exports.binary = false;
@@ -1638,7 +1978,7 @@ exports.comment = null;
 exports.unixPermissions = null;
 exports.dosPermissions = null;
 
-},{}],11:[function(_dereq_,module,exports){
+},{}],14:[function(_dereq_,module,exports){
 'use strict';
 var utils = _dereq_('./utils');
 
@@ -1745,7 +2085,7 @@ exports.isRegExp = function (object) {
 };
 
 
-},{"./utils":25}],12:[function(_dereq_,module,exports){
+},{"./utils":28}],15:[function(_dereq_,module,exports){
 'use strict';
 var USE_TYPEDARRAY = (typeof Uint8Array !== 'undefined') && (typeof Uint16Array !== 'undefined') && (typeof Uint32Array !== 'undefined');
 
@@ -1763,7 +2103,7 @@ exports.uncompress =  function(input) {
     return pako.inflateRaw(input);
 };
 
-},{"pako":28}],13:[function(_dereq_,module,exports){
+},{"pako":31}],16:[function(_dereq_,module,exports){
 'use strict';
 
 var base64 = _dereq_('./base64');
@@ -1844,7 +2184,7 @@ JSZip.base64 = {
 JSZip.compressions = _dereq_('./compressions');
 module.exports = JSZip;
 
-},{"./base64":5,"./compressions":7,"./defaults":10,"./deprecatedPublicUtils":11,"./load":14,"./object":17,"./support":21}],14:[function(_dereq_,module,exports){
+},{"./base64":8,"./compressions":10,"./defaults":13,"./deprecatedPublicUtils":14,"./load":17,"./object":20,"./support":24}],17:[function(_dereq_,module,exports){
 'use strict';
 var base64 = _dereq_('./base64');
 var ZipEntries = _dereq_('./zipEntries');
@@ -1877,7 +2217,7 @@ module.exports = function(data, options) {
     return this;
 };
 
-},{"./base64":5,"./zipEntries":26}],15:[function(_dereq_,module,exports){
+},{"./base64":8,"./zipEntries":29}],18:[function(_dereq_,module,exports){
 (function (Buffer){
 'use strict';
 module.exports = function(data, encoding){
@@ -1888,7 +2228,7 @@ module.exports.test = function(b){
 };
 
 }).call(this,_dereq_("buffer").Buffer)
-},{"buffer":1}],16:[function(_dereq_,module,exports){
+},{"buffer":1}],19:[function(_dereq_,module,exports){
 'use strict';
 var Uint8ArrayReader = _dereq_('./uint8ArrayReader');
 
@@ -1910,7 +2250,7 @@ NodeBufferReader.prototype.readData = function(size) {
 };
 module.exports = NodeBufferReader;
 
-},{"./uint8ArrayReader":22}],17:[function(_dereq_,module,exports){
+},{"./uint8ArrayReader":25}],20:[function(_dereq_,module,exports){
 'use strict';
 var support = _dereq_('./support');
 var utils = _dereq_('./utils');
@@ -2795,7 +3135,7 @@ var out = {
 };
 module.exports = out;
 
-},{"./base64":5,"./compressedObject":6,"./compressions":7,"./crc32":8,"./defaults":10,"./nodeBuffer":15,"./signature":18,"./stringWriter":20,"./support":21,"./uint8ArrayWriter":23,"./utf8":24,"./utils":25}],18:[function(_dereq_,module,exports){
+},{"./base64":8,"./compressedObject":9,"./compressions":10,"./crc32":11,"./defaults":13,"./nodeBuffer":18,"./signature":21,"./stringWriter":23,"./support":24,"./uint8ArrayWriter":26,"./utf8":27,"./utils":28}],21:[function(_dereq_,module,exports){
 'use strict';
 exports.LOCAL_FILE_HEADER = "PK\x03\x04";
 exports.CENTRAL_FILE_HEADER = "PK\x01\x02";
@@ -2804,7 +3144,7 @@ exports.ZIP64_CENTRAL_DIRECTORY_LOCATOR = "PK\x06\x07";
 exports.ZIP64_CENTRAL_DIRECTORY_END = "PK\x06\x06";
 exports.DATA_DESCRIPTOR = "PK\x07\x08";
 
-},{}],19:[function(_dereq_,module,exports){
+},{}],22:[function(_dereq_,module,exports){
 'use strict';
 var DataReader = _dereq_('./dataReader');
 var utils = _dereq_('./utils');
@@ -2842,7 +3182,7 @@ StringReader.prototype.readData = function(size) {
 };
 module.exports = StringReader;
 
-},{"./dataReader":9,"./utils":25}],20:[function(_dereq_,module,exports){
+},{"./dataReader":12,"./utils":28}],23:[function(_dereq_,module,exports){
 'use strict';
 
 var utils = _dereq_('./utils');
@@ -2874,7 +3214,7 @@ StringWriter.prototype = {
 
 module.exports = StringWriter;
 
-},{"./utils":25}],21:[function(_dereq_,module,exports){
+},{"./utils":28}],24:[function(_dereq_,module,exports){
 (function (Buffer){
 'use strict';
 exports.base64 = true;
@@ -2912,7 +3252,7 @@ else {
 }
 
 }).call(this,_dereq_("buffer").Buffer)
-},{"buffer":1}],22:[function(_dereq_,module,exports){
+},{"buffer":1}],25:[function(_dereq_,module,exports){
 'use strict';
 var DataReader = _dereq_('./dataReader');
 
@@ -2961,7 +3301,7 @@ Uint8ArrayReader.prototype.readData = function(size) {
 };
 module.exports = Uint8ArrayReader;
 
-},{"./dataReader":9}],23:[function(_dereq_,module,exports){
+},{"./dataReader":12}],26:[function(_dereq_,module,exports){
 'use strict';
 
 var utils = _dereq_('./utils');
@@ -2999,7 +3339,7 @@ Uint8ArrayWriter.prototype = {
 
 module.exports = Uint8ArrayWriter;
 
-},{"./utils":25}],24:[function(_dereq_,module,exports){
+},{"./utils":28}],27:[function(_dereq_,module,exports){
 'use strict';
 
 var utils = _dereq_('./utils');
@@ -3208,7 +3548,7 @@ exports.utf8decode = function utf8decode(buf) {
 };
 // vim: set shiftwidth=4 softtabstop=4:
 
-},{"./nodeBuffer":15,"./support":21,"./utils":25}],25:[function(_dereq_,module,exports){
+},{"./nodeBuffer":18,"./support":24,"./utils":28}],28:[function(_dereq_,module,exports){
 'use strict';
 var support = _dereq_('./support');
 var compressions = _dereq_('./compressions');
@@ -3536,7 +3876,7 @@ exports.isRegExp = function (object) {
 };
 
 
-},{"./compressions":7,"./nodeBuffer":15,"./support":21}],26:[function(_dereq_,module,exports){
+},{"./compressions":10,"./nodeBuffer":18,"./support":24}],29:[function(_dereq_,module,exports){
 'use strict';
 var StringReader = _dereq_('./stringReader');
 var NodeBufferReader = _dereq_('./nodeBufferReader');
@@ -3759,7 +4099,7 @@ ZipEntries.prototype = {
 // }}} end of ZipEntries
 module.exports = ZipEntries;
 
-},{"./nodeBufferReader":16,"./object":17,"./signature":18,"./stringReader":19,"./support":21,"./uint8ArrayReader":22,"./utils":25,"./zipEntry":27}],27:[function(_dereq_,module,exports){
+},{"./nodeBufferReader":19,"./object":20,"./signature":21,"./stringReader":22,"./support":24,"./uint8ArrayReader":25,"./utils":28,"./zipEntry":30}],30:[function(_dereq_,module,exports){
 'use strict';
 var StringReader = _dereq_('./stringReader');
 var utils = _dereq_('./utils');
@@ -4071,7 +4411,7 @@ ZipEntry.prototype = {
 };
 module.exports = ZipEntry;
 
-},{"./compressedObject":6,"./object":17,"./stringReader":19,"./utils":25}],28:[function(_dereq_,module,exports){
+},{"./compressedObject":9,"./object":20,"./stringReader":22,"./utils":28}],31:[function(_dereq_,module,exports){
 // Top level file is just a mixin of submodules & constants
 'use strict';
 
@@ -4087,7 +4427,7 @@ assign(pako, deflate, inflate, constants);
 
 module.exports = pako;
 
-},{"./lib/deflate":29,"./lib/inflate":30,"./lib/utils/common":31,"./lib/zlib/constants":34}],29:[function(_dereq_,module,exports){
+},{"./lib/deflate":32,"./lib/inflate":33,"./lib/utils/common":34,"./lib/zlib/constants":37}],32:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -4465,7 +4805,7 @@ exports.deflate = deflate;
 exports.deflateRaw = deflateRaw;
 exports.gzip = gzip;
 
-},{"./utils/common":31,"./utils/strings":32,"./zlib/deflate.js":36,"./zlib/messages":41,"./zlib/zstream":43}],30:[function(_dereq_,module,exports){
+},{"./utils/common":34,"./utils/strings":35,"./zlib/deflate.js":39,"./zlib/messages":44,"./zlib/zstream":46}],33:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -4646,6 +4986,10 @@ Inflate.prototype.push = function(data, mode) {
   var status, _mode;
   var next_out_utf8, tail, utf8str;
 
+  // Flag to properly process Z_BUF_ERROR on testing inflate call
+  // when we check that all output data was flushed.
+  var allowBufError = false;
+
   if (this.ended) { return false; }
   _mode = (mode === ~~mode) ? mode : ((mode === true) ? c.Z_FINISH : c.Z_NO_FLUSH);
 
@@ -4670,6 +5014,11 @@ Inflate.prototype.push = function(data, mode) {
     }
 
     status = zlib_inflate.inflate(strm, c.Z_NO_FLUSH);    /* no bad return value */
+
+    if (status === c.Z_BUF_ERROR && allowBufError === true) {
+      status = c.Z_OK;
+      allowBufError = false;
+    }
 
     if (status !== c.Z_STREAM_END && status !== c.Z_OK) {
       this.onEnd(status);
@@ -4699,7 +5048,19 @@ Inflate.prototype.push = function(data, mode) {
         }
       }
     }
-  } while ((strm.avail_in > 0) && status !== c.Z_STREAM_END);
+
+    // When no more input data, we should check that internal inflate buffers
+    // are flushed. The only way to do it when avail_out = 0 - run one more
+    // inflate pass. But if output data not exists, inflate return Z_BUF_ERROR.
+    // Here we set flag to process this error properly.
+    //
+    // NOTE. Deflate does not return error in this case and does not needs such
+    // logic.
+    if (strm.avail_in === 0 && strm.avail_out === 0) {
+      allowBufError = true;
+    }
+
+  } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== c.Z_STREAM_END);
 
   if (status === c.Z_STREAM_END) {
     _mode = c.Z_FINISH;
@@ -4846,7 +5207,7 @@ exports.inflate = inflate;
 exports.inflateRaw = inflateRaw;
 exports.ungzip  = inflate;
 
-},{"./utils/common":31,"./utils/strings":32,"./zlib/constants":34,"./zlib/gzheader":37,"./zlib/inflate.js":39,"./zlib/messages":41,"./zlib/zstream":43}],31:[function(_dereq_,module,exports){
+},{"./utils/common":34,"./utils/strings":35,"./zlib/constants":37,"./zlib/gzheader":40,"./zlib/inflate.js":42,"./zlib/messages":44,"./zlib/zstream":46}],34:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -4950,7 +5311,7 @@ exports.setTyped = function (on) {
 
 exports.setTyped(TYPED_OK);
 
-},{}],32:[function(_dereq_,module,exports){
+},{}],35:[function(_dereq_,module,exports){
 // String encode/decode helpers
 'use strict';
 
@@ -5137,7 +5498,7 @@ exports.utf8border = function(buf, max) {
   return (pos + _utf8len[buf[pos]] > max) ? pos : max;
 };
 
-},{"./common":31}],33:[function(_dereq_,module,exports){
+},{"./common":34}],36:[function(_dereq_,module,exports){
 'use strict';
 
 // Note: adler32 takes 12% for level 0 and 2% for level 6.
@@ -5171,7 +5532,7 @@ function adler32(adler, buf, len, pos) {
 
 module.exports = adler32;
 
-},{}],34:[function(_dereq_,module,exports){
+},{}],37:[function(_dereq_,module,exports){
 module.exports = {
 
   /* Allowed flush values; see deflate() and inflate() below for details */
@@ -5220,7 +5581,7 @@ module.exports = {
   //Z_NULL:                 null // Use -1 or null inline, depending on var type
 };
 
-},{}],35:[function(_dereq_,module,exports){
+},{}],38:[function(_dereq_,module,exports){
 'use strict';
 
 // Note: we can't get significant speed boost here.
@@ -5263,7 +5624,7 @@ function crc32(crc, buf, len, pos) {
 
 module.exports = crc32;
 
-},{}],36:[function(_dereq_,module,exports){
+},{}],39:[function(_dereq_,module,exports){
 'use strict';
 
 var utils   = _dereq_('../utils/common');
@@ -7030,7 +7391,7 @@ exports.deflatePrime = deflatePrime;
 exports.deflateTune = deflateTune;
 */
 
-},{"../utils/common":31,"./adler32":33,"./crc32":35,"./messages":41,"./trees":42}],37:[function(_dereq_,module,exports){
+},{"../utils/common":34,"./adler32":36,"./crc32":38,"./messages":44,"./trees":45}],40:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -7072,7 +7433,7 @@ function GZheader() {
 
 module.exports = GZheader;
 
-},{}],38:[function(_dereq_,module,exports){
+},{}],41:[function(_dereq_,module,exports){
 'use strict';
 
 // See state defs from inflate.js
@@ -7127,7 +7488,8 @@ module.exports = function inflate_fast(strm, start) {
   var wsize;                  /* window size or zero if not using window */
   var whave;                  /* valid bytes in the window */
   var wnext;                  /* window write index */
-  var window;                 /* allocated sliding window, if wsize != 0 */
+  // Use `s_window` instead `window`, avoid conflict with instrumentation tools
+  var s_window;               /* allocated sliding window, if wsize != 0 */
   var hold;                   /* local strm.hold */
   var bits;                   /* local strm.bits */
   var lcode;                  /* local strm.lencode */
@@ -7161,7 +7523,7 @@ module.exports = function inflate_fast(strm, start) {
   wsize = state.wsize;
   whave = state.whave;
   wnext = state.wnext;
-  window = state.window;
+  s_window = state.window;
   hold = state.hold;
   bits = state.bits;
   lcode = state.lencode;
@@ -7279,13 +7641,13 @@ module.exports = function inflate_fast(strm, start) {
 //#endif
               }
               from = 0; // window index
-              from_source = window;
+              from_source = s_window;
               if (wnext === 0) {           /* very common case */
                 from += wsize - op;
                 if (op < len) {         /* some from window */
                   len -= op;
                   do {
-                    output[_out++] = window[from++];
+                    output[_out++] = s_window[from++];
                   } while (--op);
                   from = _out - dist;  /* rest from output */
                   from_source = output;
@@ -7297,14 +7659,14 @@ module.exports = function inflate_fast(strm, start) {
                 if (op < len) {         /* some from end of window */
                   len -= op;
                   do {
-                    output[_out++] = window[from++];
+                    output[_out++] = s_window[from++];
                   } while (--op);
                   from = 0;
                   if (wnext < len) {  /* some from start of window */
                     op = wnext;
                     len -= op;
                     do {
-                      output[_out++] = window[from++];
+                      output[_out++] = s_window[from++];
                     } while (--op);
                     from = _out - dist;      /* rest from output */
                     from_source = output;
@@ -7316,7 +7678,7 @@ module.exports = function inflate_fast(strm, start) {
                 if (op < len) {         /* some from window */
                   len -= op;
                   do {
-                    output[_out++] = window[from++];
+                    output[_out++] = s_window[from++];
                   } while (--op);
                   from = _out - dist;  /* rest from output */
                   from_source = output;
@@ -7399,7 +7761,7 @@ module.exports = function inflate_fast(strm, start) {
   return;
 };
 
-},{}],39:[function(_dereq_,module,exports){
+},{}],42:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -8904,7 +9266,7 @@ exports.inflateSyncPoint = inflateSyncPoint;
 exports.inflateUndermine = inflateUndermine;
 */
 
-},{"../utils/common":31,"./adler32":33,"./crc32":35,"./inffast":38,"./inftrees":40}],40:[function(_dereq_,module,exports){
+},{"../utils/common":34,"./adler32":36,"./crc32":38,"./inffast":41,"./inftrees":43}],43:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -9233,7 +9595,7 @@ module.exports = function inflate_table(type, lens, lens_index, codes, table, ta
   return 0;
 };
 
-},{"../utils/common":31}],41:[function(_dereq_,module,exports){
+},{"../utils/common":34}],44:[function(_dereq_,module,exports){
 'use strict';
 
 module.exports = {
@@ -9248,7 +9610,7 @@ module.exports = {
   '-6':   'incompatible version' /* Z_VERSION_ERROR (-6) */
 };
 
-},{}],42:[function(_dereq_,module,exports){
+},{}],45:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -10449,7 +10811,7 @@ exports._tr_flush_block  = _tr_flush_block;
 exports._tr_tally = _tr_tally;
 exports._tr_align = _tr_align;
 
-},{"../utils/common":31}],43:[function(_dereq_,module,exports){
+},{"../utils/common":34}],46:[function(_dereq_,module,exports){
 'use strict';
 
 
@@ -10480,7 +10842,2917 @@ function ZStream() {
 
 module.exports = ZStream;
 
-},{}],44:[function(_dereq_,module,exports){
+},{}],47:[function(_dereq_,module,exports){
+/*
+Slick Parser
+ - originally created by the almighty Thomas Aylott <@subtlegradient> (http://subtlegradient.com)
+*/"use strict"
+
+// Notable changes from Slick.Parser 1.0.x
+
+// The parser now uses 2 classes: Expressions and Expression
+// `new Expressions` produces an array-like object containing a list of Expression objects
+// - Expressions::toString() produces a cleaned up expressions string
+// `new Expression` produces an array-like object
+// - Expression::toString() produces a cleaned up expression string
+// The only exposed method is parse, which produces a (cached) `new Expressions` instance
+// parsed.raw is no longer present, use .toString()
+// parsed.expression is now useless, just use the indices
+// parsed.reverse() has been removed for now, due to its apparent uselessness
+// Other changes in the Expressions object:
+// - classNames are now unique, and save both escaped and unescaped values
+// - attributes now save both escaped and unescaped values
+// - pseudos now save both escaped and unescaped values
+
+var escapeRe   = /([-.*+?^${}()|[\]\/\\])/g,
+    unescapeRe = /\\/g
+
+var escape = function(string){
+    // XRegExp v2.0.0-beta-3
+    // « https://github.com/slevithan/XRegExp/blob/master/src/xregexp.js
+    return (string + "").replace(escapeRe, '\\$1')
+}
+
+var unescape = function(string){
+    return (string + "").replace(unescapeRe, '')
+}
+
+var slickRe = RegExp(
+/*
+#!/usr/bin/env ruby
+puts "\t\t" + DATA.read.gsub(/\(\?x\)|\s+#.*$|\s+|\\$|\\n/,'')
+__END__
+    "(?x)^(?:\
+      \\s* ( , ) \\s*               # Separator          \n\
+    | \\s* ( <combinator>+ ) \\s*   # Combinator         \n\
+    |      ( \\s+ )                 # CombinatorChildren \n\
+    |      ( <unicode>+ | \\* )     # Tag                \n\
+    | \\#  ( <unicode>+       )     # ID                 \n\
+    | \\.  ( <unicode>+       )     # ClassName          \n\
+    |                               # Attribute          \n\
+    \\[  \
+        \\s* (<unicode1>+)  (?:  \
+            \\s* ([*^$!~|]?=)  (?:  \
+                \\s* (?:\
+                    ([\"']?)(.*?)\\9 \
+                )\
+            )  \
+        )?  \\s*  \
+    \\](?!\\]) \n\
+    |   :+ ( <unicode>+ )(?:\
+    \\( (?:\
+        (?:([\"'])([^\\12]*)\\12)|((?:\\([^)]+\\)|[^()]*)+)\
+    ) \\)\
+    )?\
+    )"
+*/
+"^(?:\\s*(,)\\s*|\\s*(<combinator>+)\\s*|(\\s+)|(<unicode>+|\\*)|\\#(<unicode>+)|\\.(<unicode>+)|\\[\\s*(<unicode1>+)(?:\\s*([*^$!~|]?=)(?:\\s*(?:([\"']?)(.*?)\\9)))?\\s*\\](?!\\])|(:+)(<unicode>+)(?:\\((?:(?:([\"'])([^\\13]*)\\13)|((?:\\([^)]+\\)|[^()]*)+))\\))?)"
+    .replace(/<combinator>/, '[' + escape(">+~`!@$%^&={}\\;</") + ']')
+    .replace(/<unicode>/g, '(?:[\\w\\u00a1-\\uFFFF-]|\\\\[^\\s0-9a-f])')
+    .replace(/<unicode1>/g, '(?:[:\\w\\u00a1-\\uFFFF-]|\\\\[^\\s0-9a-f])')
+)
+
+// Part
+
+var Part = function Part(combinator){
+    this.combinator = combinator || " "
+    this.tag = "*"
+}
+
+Part.prototype.toString = function(){
+
+    if (!this.raw){
+
+        var xpr = "", k, part
+
+        xpr += this.tag || "*"
+        if (this.id) xpr += "#" + this.id
+        if (this.classes) xpr += "." + this.classList.join(".")
+        if (this.attributes) for (k = 0; part = this.attributes[k++];){
+            xpr += "[" + part.name + (part.operator ? part.operator + '"' + part.value + '"' : '') + "]"
+        }
+        if (this.pseudos) for (k = 0; part = this.pseudos[k++];){
+            xpr += ":" + part.name
+            if (part.value) xpr += "(" + part.value + ")"
+        }
+
+        this.raw = xpr
+
+    }
+
+    return this.raw
+}
+
+// Expression
+
+var Expression = function Expression(){
+    this.length = 0
+}
+
+Expression.prototype.toString = function(){
+
+    if (!this.raw){
+
+        var xpr = ""
+
+        for (var j = 0, bit; bit = this[j++];){
+            if (j !== 1) xpr += " "
+            if (bit.combinator !== " ") xpr += bit.combinator + " "
+            xpr += bit
+        }
+
+        this.raw = xpr
+
+    }
+
+    return this.raw
+}
+
+var replacer = function(
+    rawMatch,
+
+    separator,
+    combinator,
+    combinatorChildren,
+
+    tagName,
+    id,
+    className,
+
+    attributeKey,
+    attributeOperator,
+    attributeQuote,
+    attributeValue,
+
+    pseudoMarker,
+    pseudoClass,
+    pseudoQuote,
+    pseudoClassQuotedValue,
+    pseudoClassValue
+){
+
+    var expression, current
+
+    if (separator || !this.length){
+        expression = this[this.length++] = new Expression
+        if (separator) return ''
+    }
+
+    if (!expression) expression = this[this.length - 1]
+
+    if (combinator || combinatorChildren || !expression.length){
+        current = expression[expression.length++] = new Part(combinator)
+    }
+
+    if (!current) current = expression[expression.length - 1]
+
+    if (tagName){
+
+        current.tag = unescape(tagName)
+
+    } else if (id){
+
+        current.id = unescape(id)
+
+    } else if (className){
+
+        var unescaped = unescape(className)
+
+        var classes = current.classes || (current.classes = {})
+        if (!classes[unescaped]){
+            classes[unescaped] = escape(className)
+            var classList = current.classList || (current.classList = [])
+            classList.push(unescaped)
+            classList.sort()
+        }
+
+    } else if (pseudoClass){
+
+        pseudoClassValue = pseudoClassValue || pseudoClassQuotedValue
+
+        ;(current.pseudos || (current.pseudos = [])).push({
+            type         : pseudoMarker.length == 1 ? 'class' : 'element',
+            name         : unescape(pseudoClass),
+            escapedName  : escape(pseudoClass),
+            value        : pseudoClassValue ? unescape(pseudoClassValue) : null,
+            escapedValue : pseudoClassValue ? escape(pseudoClassValue) : null
+        })
+
+    } else if (attributeKey){
+
+        attributeValue = attributeValue ? escape(attributeValue) : null
+
+        ;(current.attributes || (current.attributes = [])).push({
+            operator     : attributeOperator,
+            name         : unescape(attributeKey),
+            escapedName  : escape(attributeKey),
+            value        : attributeValue ? unescape(attributeValue) : null,
+            escapedValue : attributeValue ? escape(attributeValue) : null
+        })
+
+    }
+
+    return ''
+
+}
+
+// Expressions
+
+var Expressions = function Expressions(expression){
+    this.length = 0
+
+    var self = this
+
+    var original = expression, replaced
+
+    while (expression){
+        replaced = expression.replace(slickRe, function(){
+            return replacer.apply(self, arguments)
+        })
+        if (replaced === expression) throw new Error(original + ' is an invalid expression')
+        expression = replaced
+    }
+}
+
+Expressions.prototype.toString = function(){
+    if (!this.raw){
+        var expressions = []
+        for (var i = 0, expression; expression = this[i++];) expressions.push(expression)
+        this.raw = expressions.join(", ")
+    }
+
+    return this.raw
+}
+
+var cache = {}
+
+var parse = function(expression){
+    if (expression == null) return null
+    expression = ('' + expression).replace(/^\s+|\s+$/g, '')
+    return cache[expression] || (cache[expression] = new Expressions(expression))
+}
+
+module.exports = parse
+
+},{}],48:[function(_dereq_,module,exports){
+
+/**
+ * juice
+ * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
+ * MIT Licensed
+ */
+
+ "use strict";
+
+/**
+ * Module dependencies.
+ */
+
+var utils = _dereq_('./utils');
+var Selector = _dereq_('./selector');
+var Property = _dereq_('./property');
+var packageJson = _dereq_('../package');
+var path = _dereq_('path');
+var styleSelector = new Selector('<style attribute>', [1, 0, 0, 0]);
+var importantSelector = new Selector('<!important>', [2, 0, 0, 0]);
+
+var juice = function (html,options) {
+  var $ = utils.jquery(html, { xmlMode: options && options.xmlMode});
+  var doc = juiceDocument($,options);
+
+  if (options && options.xmlMode){
+    return doc.xml();
+  }
+  else {
+    return utils.decodeEntities(doc.html());
+  }
+};
+
+module.exports = juice;
+
+/**
+ * Package version
+ */
+
+juice.version = packageJson.version;
+
+/**
+ * Export Selector.
+ */
+
+juice.Selector = Selector;
+
+/**
+ * Export Property.
+ */
+
+juice.Property = Property;
+
+/**
+ * Export utils.
+ */
+
+juice.utils = _dereq_('./utils');
+
+
+juice.ignoredPseudos = ['hover', 'active', 'focus', 'visited', 'link'];
+juice.widthElements = ['TABLE', 'TD', 'IMG'];
+juice.tableElements = ['TABLE', 'TD', 'TH', 'TR', 'TD', 'CAPTION', 'COLGROUP', 'COL', 'THEAD', 'TBODY', 'TFOOT'];
+juice.nonVisualElements = [ "HEAD", "TITLE", "BASE", "LINK", "STYLE", "META", "SCRIPT", "NOSCRIPT" ];
+juice.styleToAttribute = {
+  'background-color': 'bgcolor',
+  'background-image': 'background',
+  'text-align': 'align',
+  'vertical-align': 'valign'
+};
+
+juice.juiceDocument = juiceDocument;
+juice.inlineDocument = inlineDocument;
+
+function inlineDocument($, css, options) {
+
+  var rules = utils.parseCSS(css);
+  var editedElements = [];
+
+  rules.forEach(handleRule);
+  editedElements.forEach(setStyleAttrs);
+
+  if (options && options.inlinePseudoElements) {
+    editedElements.forEach(inlinePseudoElements);
+  }
+
+  if (options && options.applyWidthAttributes) {
+    editedElements.forEach(setWidthAttrs);
+  }
+
+  if (options && options.applyAttributesTableElements) {
+    editedElements.forEach(setAttributesOnTableElements);
+  }
+
+  function handleRule(rule) {
+    var sel = rule[0];
+    var style = rule[1];
+    var selector = new Selector(sel);
+    var parsedSelector = selector.parsed();
+    var pseudoElementType = getPseudoElementType(parsedSelector);
+
+    // skip rule if the selector has any pseudos which are ignored
+    for (var i = 0; i < parsedSelector.length; ++i) {
+      var subSel = parsedSelector[i];
+      if (subSel.pseudos) {
+        for (var j = 0; j < subSel.pseudos.length; ++j) {
+          var subSelPseudo = subSel.pseudos[j];
+          if (juice.ignoredPseudos.indexOf(subSelPseudo.name) >= 0) {
+            return;
+          }
+        }
+      }
+    }
+
+    if (pseudoElementType) {
+      var last = parsedSelector[parsedSelector.length - 1];
+      var pseudos = last.pseudos;
+      last.pseudos = filterElementPseudos(last.pseudos);
+      sel = parsedSelector.toString();
+      last.pseudos = pseudos;
+    }
+
+    var els;
+    try {
+      els = $(sel);
+    } catch (err) {
+      // skip invalid selector
+      return;
+    }
+
+    els.each(function () {
+      var el = this;
+
+      if (el.tagName && juice.nonVisualElements.indexOf(el.tagName.toUpperCase()) >= 0) {
+          return;
+      }
+
+      if (pseudoElementType) {
+        var pseudoElPropName = "pseudo" + pseudoElementType;
+        var pseudoEl = el[pseudoElPropName];
+        if (!pseudoEl) {
+          pseudoEl = el[pseudoElPropName] = $("<span />").get(0);
+          pseudoEl.pseudoElementType = pseudoElementType;
+          pseudoEl.pseudoElementParent = el;
+          el[pseudoElPropName] = pseudoEl;
+        }
+        el = pseudoEl;
+      }
+
+      if (!el.styleProps) {
+        el.styleProps = {};
+
+        // if the element has inline styles, fake selector with topmost specificity
+        if ($(el).attr('style')) {
+          var cssText = '* { ' + $(el).attr('style') + ' } ';
+          addProps(utils.parseCSS(cssText)[0][1], styleSelector);
+        }
+
+        // store reference to an element we need to compile style="" attr for
+        editedElements.push(el);
+      }
+
+      // go through the properties
+      function addProps (style, selector) {
+        for (var i = 0, l = style.length; i < l; i++) {
+          var name = style[i];
+          var value = style[name] + (options && options.preserveImportant && style._importants[name] ? ' !important' : '');
+          var sel = style._importants[name] ? importantSelector : selector;
+          var prop = new Property(name, value, sel);
+          var existing = el.styleProps[name];
+
+          if (existing && existing.compare(prop) === prop || !existing) {
+            el.styleProps[name] = prop;
+          }
+        }
+      }
+
+      addProps(style, selector);
+    });
+  }
+
+  function setStyleAttrs(el) {
+    var props = Object.keys(el.styleProps).map(function(key) {
+      return el.styleProps[key];
+    });
+    // sort properties by their originating selector's specificity so that
+    // props like "padding" and "padding-bottom" are resolved as expected.
+    props.sort(function(a, b) {
+      return a.selector.specificity().join("").localeCompare(
+        b.selector.specificity().join(""));
+    });
+    var string = props
+      .filter(function(prop) {
+        // Content becomes the innerHTML of pseudo elements, not used as a
+        // style property
+        return prop.prop !== "content";
+      })
+      .map(function(prop) {
+        return prop.prop + ": " + prop.value.replace(/["]/g, "'") + ";";
+      })
+      .join(" ");
+    if (string) {
+      $(el).attr('style', string);
+    }
+  }
+
+  function inlinePseudoElements(el) {
+    if (el.pseudoElementType && el.styleProps.content) {
+      $(el).html(parseContent(el.styleProps.content.value));
+      var parent = el.pseudoElementParent;
+      if (el.pseudoElementType === "before") {
+        $(parent).prepend(el);
+      }
+      else {
+        $(parent).append(el);
+      }
+    }
+  }
+
+  function setWidthAttrs(el) {
+    var elName = el.tagName.toUpperCase();
+    if (juice.widthElements.indexOf(elName) > -1) {
+      for (var i in el.styleProps) {
+        if (el.styleProps[i].prop === 'width') {
+          if (el.styleProps[i].value.match(/px/)) {
+            var pxWidth = el.styleProps[i].value.replace('px', '');
+            $(el).attr('width', pxWidth);
+            return;
+          }
+          if (juice.tableElements.indexOf(elName) > -1 && el.styleProps[i].value.match(/\%/)) {
+            $(el).attr('width', el.styleProps[i].value);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  function setAttributesOnTableElements(el) {
+    var elName = el.tagName.toUpperCase(),
+        styleProps = Object.keys(juice.styleToAttribute);
+
+    if (juice.tableElements.indexOf(elName) > -1) {
+      for (var i in el.styleProps) {
+        if (styleProps.indexOf(el.styleProps[i].prop) > -1) {
+          $(el).attr(juice.styleToAttribute[el.styleProps[i].prop], el.styleProps[i].value);
+        }
+      }
+    }
+  }
+}
+
+function parseContent(content) {
+  if (content === "none" || content === "normal") {
+    return "";
+  }
+
+  // Naive parsing, assume well-formed value
+  content = content.slice(1, content.length - 1);
+  // Naive unescape, assume no unicode char codes
+  content = content.replace(/\\/g, "");
+  return content;
+}
+
+// Return "before" or "after" if the given selector is a pseudo element (e.g.,
+// a::after).
+function getPseudoElementType(selector) {
+  if (selector.length === 0) {
+    return;
+  }
+
+  var pseudos = selector[selector.length - 1].pseudos;
+  if (!pseudos) {
+    return;
+  }
+
+  for (var i = 0; i < pseudos.length; i++) {
+    if (isPseudoElementName(pseudos[i])) {
+      return pseudos[i].name;
+    }
+  }
+}
+
+function isPseudoElementName(pseudo) {
+  return pseudo.name === "before" || pseudo.name === "after";
+}
+
+function filterElementPseudos(pseudos) {
+  return pseudos.filter(function(pseudo) {
+    return !isPseudoElementName(pseudo);
+  });
+}
+
+function juiceDocument($, options) {
+  options = getDefaultOptions(options);
+  var css = extractCssFromDocument($, options);
+  css += "\n" + options.extraCss;
+  inlineDocument($, css, options);
+  return $;
+}
+
+function getDefaultOptions(options) {
+  var result = utils.extend({
+    extraCss: "",
+    applyStyleTags: true,
+    removeStyleTags: true,
+    preserveMediaQueries: false,
+    preserveFontFaces: false,
+    applyWidthAttributes: false,
+    applyAttributesTableElements: false,
+    url: ""
+  }, options);
+
+  return result;
+}
+
+function getStylesData($, options) {
+  var results = [];
+  var stylesList = $("style");
+  var styleDataList, styleData, styleElement;
+  stylesList.each(function () {
+    styleElement = this;
+    styleDataList = styleElement.childNodes;
+    if (styleDataList.length !== 1) {
+      return;
+    }
+    styleData = styleDataList[0].data;
+    if ( options.applyStyleTags ) {
+      results.push( styleData );
+    }
+    if ( options.removeStyleTags )
+    {
+      var preservedText = utils.getPreservedText( styleElement.childNodes[0].nodeValue, {
+          mediaQueries: options.preserveMediaQueries,
+          fontFaces: options.preserveFontFaces
+      } );
+      if ( preservedText )
+      {
+        styleElement.childNodes[0].nodeValue = preservedText;
+      }
+      else
+      {
+        $(styleElement).remove();
+      }
+    }
+  });
+  return results;
+}
+
+function extractCssFromDocument($, options) {
+  var results = getStylesData($, options);
+  var css = results.join("\n");
+  return css;
+}
+
+},{"../package":70,"./property":49,"./selector":50,"./utils":51,"path":6}],49:[function(_dereq_,module,exports){
+
+/**
+ * juice
+ * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
+ * MIT Licensed
+ */
+
+"use strict";
+
+module.exports = exports = Property;
+
+/**
+ * Module dependencies.
+ */
+
+var compare = _dereq_('./utils').compare;
+
+/**
+ * CSS property constructor.
+ *
+ * @param {String} property
+ * @param {String} value
+ * @param {Selector} selector the property originates from
+ * @api public
+ */
+
+function Property (prop, value, selector) {
+  this.prop = prop;
+  this.value = value;
+  this.selector = selector;
+}
+
+/**
+ * Compares with another Property based on Selector#specificity.
+ *
+ * @api public
+ */
+
+Property.prototype.compare = function (property) {
+  var a = this.selector.specificity();
+  var b = property.selector.specificity();
+  var winner = compare(a, b);
+
+  if (winner === a && a !== b) {
+    return this;
+  }
+  return property;
+};
+
+/**
+ * Returns CSS property
+ *
+ * @api public
+ */
+
+Property.prototype.toString = function () {
+  return this.prop + ': ' + this.value.replace(/['"]+/g, '') + ';';
+};
+
+},{"./utils":51}],50:[function(_dereq_,module,exports){
+
+"use strict";
+
+/**
+ * Module dependencies.
+ */
+
+var parser = _dereq_('./css_parser')
+
+/**
+ * Module exports.
+ */
+
+module.exports = exports = Selector;
+
+/**
+ * CSS selector constructor.
+ *
+ * @param {String} selector text
+ * @param {Array} optionally, precalculated specificity
+ * @api public
+ */
+
+function Selector (text, spec) {
+  this.text = text;
+  this.spec = spec;
+}
+
+/**
+ * Get parsed selector.
+ *
+ * @api public
+ */
+
+Selector.prototype.parsed = function () {
+  if (!this.tokens) this.tokens = parse(this.text);
+  return this.tokens;
+};
+
+/**
+ * Lazy specificity getter
+ *
+ * @api public
+ */
+
+Selector.prototype.specificity = function () {
+  if (!this.spec) this.spec = specificity(this.text, this.parsed());
+  return this.spec;
+
+  function specificity (text, parsed) {
+    var expressions = parsed || parse(text);
+    var spec = [0, 0, 0, 0];
+    var nots = [];
+
+    for (var i = 0; i < expressions.length; i++) {
+      var expression = expressions[i];
+      var pseudos = expression.pseudos;
+
+      // id awards a point in the second column
+      if (expression.id) spec[1]++;
+
+      // classes and attributes award a point each in the third column
+      if (expression.attributes) spec[2] += expression.attributes.length;
+      if (expression.classList) spec[2] += expression.classList.length;
+
+      // tag awards a point in the fourth column
+      if (expression.tag && expression.tag !== '*') spec[3]++;
+
+      // pseudos award a point each in the fourth column
+      if (pseudos) {
+        spec[3] += pseudos.length;
+
+        for (var p = 0; p < pseudos.length; p++) {
+         if (pseudos[p].key === 'not'){
+            nots.push(pseudos[p].value);
+            spec[3]--;
+          }
+        }
+      }
+    }
+
+    for (var ii = nots.length; ii--;) {
+      var not = specificity(nots[ii]);
+      for (var jj = 4; jj--;) spec[jj] += not[jj];
+    }
+
+    return spec;
+  }
+};
+
+/**
+ * Parses a selector and returns the tokens.
+ *
+ * @param {String} selector
+ * @api private.
+ */
+
+function parse (text) {
+  try {
+    return parser(text)[0];
+  } catch (e) {
+    return [];
+  }
+}
+
+},{"./css_parser":47}],51:[function(_dereq_,module,exports){
+"use strict";
+
+/**
+ * Module dependencies.
+ */
+
+var cssom = _dereq_('cssom');
+var own = {}.hasOwnProperty;
+var os = _dereq_('os');
+
+/**
+ * Returns an array of the selectors.
+ *
+ * @license Sizzle CSS Selector Engine - MIT
+ * @param {String} selectorText from cssom
+ * @api public
+ */
+
+exports.extract = function extract (selectorText) {
+  var attr = 0;
+  var sels = [];
+  var sel = '';
+
+  for (var i = 0, l = selectorText.length; i < l; i++) {
+    var c = selectorText.charAt(i);
+
+    if (attr) {
+      if (']' === c || ')' === c) attr--;
+      sel += c;
+    } else {
+      if (',' === c) {
+        sels.push(sel);
+        sel = '';
+      } else {
+        if ('[' === c || '(' === c) attr++;
+        if (sel.length || (c !== ',' && c !== '\n' && c !== ' ')) sel += c;
+      }
+    }
+  }
+
+  if (sel.length) {
+    sels.push(sel);
+  }
+
+  return sels;
+};
+
+/**
+ * Returns a parse tree for a CSS source.
+ * If it encounters multiple selectors separated by a comma, it splits the
+ * tree.
+ *
+ * @param {String} css source
+ * @api public
+ */
+
+exports.parseCSS = function (css) {
+  var rules = cssom.parse(css).cssRules || [];
+  var ret = [];
+
+  for (var i = 0, l = rules.length; i < l; i++) {
+    if (rules[i].selectorText) { // media queries don't have selectorText
+      var rule = rules[i];
+      var selectors = exports.extract(rule.selectorText);
+
+      for (var ii = 0, ll = selectors.length; ii < ll; ii++) {
+        ret.push([selectors[ii], rule.style]);
+      }
+    }
+  }
+
+  return ret;
+};
+
+
+var getStringifiedStyles = function ( rule )
+{
+    var styles = [];
+    for ( var style = 0; style < rule.style.length; style++ )
+    {
+        var property = rule.style[style];
+        var value = rule.style[property];
+        var important = rule.style._importants[property] ? " !important" : "";
+        styles.push( "    " + property + ": " + value + important + ";" );
+    }
+    return styles;
+};
+
+/**
+ * Returns preserved text for a CSS source.
+ *
+ * @param {String} css source
+ * @param {Object} options
+ * @api public
+ */
+
+exports.getPreservedText = function ( css, options )
+{
+	var rules = cssom.parse( css ).cssRules || [];
+	var preserved = [];
+
+	for ( var i = 0, l = rules.length; i < l; i++ )
+	{
+		/* CSS types
+		  STYLE: 1,
+		  IMPORT: 3,
+		  MEDIA: 4,
+		  FONT_FACE: 5,
+		*/
+
+
+        if ( options.fontFaces && rules[i].type === cssom.CSSFontFaceRule.prototype.type )
+ 		{
+            var fontFace = [ "" ];
+            fontFace.push( "@font-face {" );
+            fontFace = fontFace.concat( getStringifiedStyles(rules[i]) );
+            fontFace.push( "}" );
+
+            if ( fontFace.length ) {
+    			preserved.push( fontFace.length ? fontFace.join( os.EOL ) + os.EOL : "" );
+            }
+        }
+
+		if ( options.mediaQueries && rules[i].type === cssom.CSSMediaRule.prototype.type )
+		{
+            var query = rules[i];
+			var queryString = [];
+
+			queryString.push( os.EOL + "@media " + query.media[0] + " {" );
+
+			for ( var ii = 0, ll = query.cssRules.length; ii < ll; ii++ )
+			{
+				var rule = query.cssRules[ii];
+
+				if ( rule.type === cssom.CSSStyleRule.prototype.type || rule.type === cssom.CSSFontFaceRule.prototype.type )
+				{
+					queryString.push( "  " + ( rule.type === cssom.CSSStyleRule.prototype.type ? rule.selectorText : "@font-face" ) + " {" );
+                    queryString = queryString.concat( getStringifiedStyles(rule) );
+					queryString.push( "  }" );
+				}
+			}
+
+			queryString.push( "}" );
+			preserved.push( queryString.length ? queryString.join( os.EOL ) + os.EOL : "" );
+		}
+	}
+
+	return preserved.join( os.EOL );
+};
+
+function pepareResultingHTML (initialHtml, resultDoc) {
+  var resultingHTML;
+  if (/<html[\s\S]+<head[\s\S]+<body/.test(initialHtml)) {
+    resultingHTML = resultDoc.documentElement.outerHTML;
+  } else if (/<head[\s\S]+<body/.test(initialHtml)) {
+    resultingHTML = resultDoc.documentElement.innerHTML;
+  } else if (/<body/.test(initialHtml)) {
+    resultingHTML = resultDoc.body.outerHTML;
+  } else {
+    resultingHTML = resultDoc.body.innerHTML;
+  }
+    resultDoc = null;
+    return resultingHTML;
+};
+
+/**
+ * Returns a jquery object
+ *
+ * api public
+ */
+
+exports.jquery = function (html) {
+  if (typeof $ === 'function' ) {
+    var fakeDoc = document.implementation.createHTMLDocument();
+    var fakeDocApi;
+    html = exports.encodeEntities(html);
+    fakeDoc.documentElement.innerHTML = html.replace(/<\/?html[^>]*>/g, '');
+    fakeDocApi = $(fakeDoc).find.bind($(fakeDoc));
+    fakeDocApi.html = pepareResultingHTML.bind(null, html, fakeDoc);
+    return fakeDocApi;
+  } else {
+    throw new Error('jquery/zepto is not found. Please ensure it is available and retry.');
+  }
+};
+
+exports.normalizeLineEndings = function (text){
+  return text.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+};
+
+exports.encodeEJS = function (html){
+  return html.replace(/<%((.|\s)*?)%>/g, function(match, subMatch){
+    return "<!--EJS <%"+subMatch+"%> -->";
+  });
+};
+
+exports.decodeEJS = function (html){
+  return html.replace(/<!--EJS <%((.|\s)*?)%> -->/g, function (match, subMatch){
+    return "<%"+subMatch+"%>";
+  });
+};
+
+exports.encodeEntities = function(html){
+  return exports.encodeEJS(html);
+};
+
+exports.decodeEntities = function(html){
+  return exports.decodeEJS(html);
+};
+
+/**
+ * Converts to array
+ *
+ * @api public
+ */
+
+exports.toArray = function (arr) {
+  var ret = [];
+
+  for (var i = 0, l = arr.length; i < l; i++){
+    ret.push(arr[i]);
+  }
+
+  return ret;
+};
+
+/**
+ * Compares two specificity vectors, returning the winning one.
+ *
+ * @param {Array} vector a
+ * @param {Array} vector b
+ * @return {Array}
+ * @api public
+ */
+
+exports.compare = function (a, b) {
+  for (var i = 0; i < 4; i++) {
+    if (a[i] === b[i]) continue;
+    if (a[i] > b[i]) return a;
+    return b;
+  }
+
+  return b;
+};
+
+exports.extend = function (obj, src) {
+  for (var key in src) {
+    if (own.call(src, key)){
+     obj[key] = src[key];
+   }
+  }
+  return obj;
+};
+
+},{"cssom":68,"os":5}],52:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+    CSSRule: _dereq_("./CSSRule").CSSRule,
+    MatcherList: _dereq_("./MatcherList").MatcherList
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see https://developer.mozilla.org/en/CSS/@-moz-document
+ */
+CSSOM.CSSDocumentRule = function CSSDocumentRule() {
+    CSSOM.CSSRule.call(this);
+    this.matcher = new CSSOM.MatcherList;
+    this.cssRules = [];
+};
+
+CSSOM.CSSDocumentRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSDocumentRule.prototype.constructor = CSSOM.CSSDocumentRule;
+CSSOM.CSSDocumentRule.prototype.type = 10;
+//FIXME
+//CSSOM.CSSDocumentRule.prototype.insertRule = CSSStyleSheet.prototype.insertRule;
+//CSSOM.CSSDocumentRule.prototype.deleteRule = CSSStyleSheet.prototype.deleteRule;
+
+Object.defineProperty(CSSOM.CSSDocumentRule.prototype, "cssText", {
+  get: function() {
+    var cssTexts = [];
+    for (var i=0, length=this.cssRules.length; i < length; i++) {
+        cssTexts.push(this.cssRules[i].cssText);
+    }
+    return "@-moz-document " + this.matcher.matcherText + " {" + cssTexts.join("") + "}";
+  }
+});
+
+
+//.CommonJS
+exports.CSSDocumentRule = CSSOM.CSSDocumentRule;
+///CommonJS
+
+},{"./CSSRule":58,"./MatcherList":64}],53:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSStyleDeclaration: _dereq_("./CSSStyleDeclaration").CSSStyleDeclaration,
+	CSSRule: _dereq_("./CSSRule").CSSRule
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#css-font-face-rule
+ */
+CSSOM.CSSFontFaceRule = function CSSFontFaceRule() {
+	CSSOM.CSSRule.call(this);
+	this.style = new CSSOM.CSSStyleDeclaration;
+	this.style.parentRule = this;
+};
+
+CSSOM.CSSFontFaceRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSFontFaceRule.prototype.constructor = CSSOM.CSSFontFaceRule;
+CSSOM.CSSFontFaceRule.prototype.type = 5;
+//FIXME
+//CSSOM.CSSFontFaceRule.prototype.insertRule = CSSStyleSheet.prototype.insertRule;
+//CSSOM.CSSFontFaceRule.prototype.deleteRule = CSSStyleSheet.prototype.deleteRule;
+
+// http://www.opensource.apple.com/source/WebCore/WebCore-955.66.1/css/WebKitCSSFontFaceRule.cpp
+Object.defineProperty(CSSOM.CSSFontFaceRule.prototype, "cssText", {
+  get: function() {
+    return "@font-face {" + this.style.cssText + "}";
+  }
+});
+
+
+//.CommonJS
+exports.CSSFontFaceRule = CSSOM.CSSFontFaceRule;
+///CommonJS
+
+},{"./CSSRule":58,"./CSSStyleDeclaration":59}],54:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSRule: _dereq_("./CSSRule").CSSRule,
+	CSSStyleSheet: _dereq_("./CSSStyleSheet").CSSStyleSheet,
+	MediaList: _dereq_("./MediaList").MediaList
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#cssimportrule
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSImportRule
+ */
+CSSOM.CSSImportRule = function CSSImportRule() {
+	CSSOM.CSSRule.call(this);
+	this.href = "";
+	this.media = new CSSOM.MediaList;
+	this.styleSheet = new CSSOM.CSSStyleSheet;
+};
+
+CSSOM.CSSImportRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSImportRule.prototype.constructor = CSSOM.CSSImportRule;
+CSSOM.CSSImportRule.prototype.type = 3;
+
+Object.defineProperty(CSSOM.CSSImportRule.prototype, "cssText", {
+  get: function() {
+    var mediaText = this.media.mediaText;
+    return "@import url(" + this.href + ")" + (mediaText ? " " + mediaText : "") + ";";
+  },
+  set: function(cssText) {
+    var i = 0;
+
+    /**
+     * @import url(partial.css) screen, handheld;
+     *        ||               |
+     *        after-import     media
+     *         |
+     *         url
+     */
+    var state = '';
+
+    var buffer = '';
+    var index;
+    var mediaText = '';
+    for (var character; character = cssText.charAt(i); i++) {
+
+      switch (character) {
+        case ' ':
+        case '\t':
+        case '\r':
+        case '\n':
+        case '\f':
+          if (state === 'after-import') {
+            state = 'url';
+          } else {
+            buffer += character;
+          }
+          break;
+
+        case '@':
+          if (!state && cssText.indexOf('@import', i) === i) {
+            state = 'after-import';
+            i += 'import'.length;
+            buffer = '';
+          }
+          break;
+
+        case 'u':
+          if (state === 'url' && cssText.indexOf('url(', i) === i) {
+            index = cssText.indexOf(')', i + 1);
+            if (index === -1) {
+              throw i + ': ")" not found';
+            }
+            i += 'url('.length;
+            var url = cssText.slice(i, index);
+            if (url[0] === url[url.length - 1]) {
+              if (url[0] === '"' || url[0] === "'") {
+                url = url.slice(1, -1);
+              }
+            }
+            this.href = url;
+            i = index;
+            state = 'media';
+          }
+          break;
+
+        case '"':
+          if (state === 'url') {
+            index = cssText.indexOf('"', i + 1);
+            if (!index) {
+              throw i + ": '\"' not found";
+            }
+            this.href = cssText.slice(i + 1, index);
+            i = index;
+            state = 'media';
+          }
+          break;
+
+        case "'":
+          if (state === 'url') {
+            index = cssText.indexOf("'", i + 1);
+            if (!index) {
+              throw i + ': "\'" not found';
+            }
+            this.href = cssText.slice(i + 1, index);
+            i = index;
+            state = 'media';
+          }
+          break;
+
+        case ';':
+          if (state === 'media') {
+            if (buffer) {
+              this.media.mediaText = buffer.trim();
+            }
+          }
+          break;
+
+        default:
+          if (state === 'media') {
+            buffer += character;
+          }
+          break;
+      }
+    }
+  }
+});
+
+
+//.CommonJS
+exports.CSSImportRule = CSSOM.CSSImportRule;
+///CommonJS
+
+},{"./CSSRule":58,"./CSSStyleSheet":61,"./MediaList":65}],55:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSRule: _dereq_("./CSSRule").CSSRule,
+	CSSStyleDeclaration: _dereq_('./CSSStyleDeclaration').CSSStyleDeclaration
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://www.w3.org/TR/css3-animations/#DOM-CSSKeyframeRule
+ */
+CSSOM.CSSKeyframeRule = function CSSKeyframeRule() {
+	CSSOM.CSSRule.call(this);
+	this.keyText = '';
+	this.style = new CSSOM.CSSStyleDeclaration;
+	this.style.parentRule = this;
+};
+
+CSSOM.CSSKeyframeRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSKeyframeRule.prototype.constructor = CSSOM.CSSKeyframeRule;
+CSSOM.CSSKeyframeRule.prototype.type = 9;
+//FIXME
+//CSSOM.CSSKeyframeRule.prototype.insertRule = CSSStyleSheet.prototype.insertRule;
+//CSSOM.CSSKeyframeRule.prototype.deleteRule = CSSStyleSheet.prototype.deleteRule;
+
+// http://www.opensource.apple.com/source/WebCore/WebCore-955.66.1/css/WebKitCSSKeyframeRule.cpp
+Object.defineProperty(CSSOM.CSSKeyframeRule.prototype, "cssText", {
+  get: function() {
+    return this.keyText + " {" + this.style.cssText + "} ";
+  }
+});
+
+
+//.CommonJS
+exports.CSSKeyframeRule = CSSOM.CSSKeyframeRule;
+///CommonJS
+
+},{"./CSSRule":58,"./CSSStyleDeclaration":59}],56:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSRule: _dereq_("./CSSRule").CSSRule
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://www.w3.org/TR/css3-animations/#DOM-CSSKeyframesRule
+ */
+CSSOM.CSSKeyframesRule = function CSSKeyframesRule() {
+	CSSOM.CSSRule.call(this);
+	this.name = '';
+	this.cssRules = [];
+};
+
+CSSOM.CSSKeyframesRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSKeyframesRule.prototype.constructor = CSSOM.CSSKeyframesRule;
+CSSOM.CSSKeyframesRule.prototype.type = 8;
+//FIXME
+//CSSOM.CSSKeyframesRule.prototype.insertRule = CSSStyleSheet.prototype.insertRule;
+//CSSOM.CSSKeyframesRule.prototype.deleteRule = CSSStyleSheet.prototype.deleteRule;
+
+// http://www.opensource.apple.com/source/WebCore/WebCore-955.66.1/css/WebKitCSSKeyframesRule.cpp
+Object.defineProperty(CSSOM.CSSKeyframesRule.prototype, "cssText", {
+  get: function() {
+    var cssTexts = [];
+    for (var i=0, length=this.cssRules.length; i < length; i++) {
+      cssTexts.push("  " + this.cssRules[i].cssText);
+    }
+    return "@" + (this._vendorPrefix || '') + "keyframes " + this.name + " { \n" + cssTexts.join("\n") + "\n}";
+  }
+});
+
+
+//.CommonJS
+exports.CSSKeyframesRule = CSSOM.CSSKeyframesRule;
+///CommonJS
+
+},{"./CSSRule":58}],57:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSRule: _dereq_("./CSSRule").CSSRule,
+	MediaList: _dereq_("./MediaList").MediaList
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#cssmediarule
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSMediaRule
+ */
+CSSOM.CSSMediaRule = function CSSMediaRule() {
+	CSSOM.CSSRule.call(this);
+	this.media = new CSSOM.MediaList;
+	this.cssRules = [];
+};
+
+CSSOM.CSSMediaRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSMediaRule.prototype.constructor = CSSOM.CSSMediaRule;
+CSSOM.CSSMediaRule.prototype.type = 4;
+//FIXME
+//CSSOM.CSSMediaRule.prototype.insertRule = CSSStyleSheet.prototype.insertRule;
+//CSSOM.CSSMediaRule.prototype.deleteRule = CSSStyleSheet.prototype.deleteRule;
+
+// http://opensource.apple.com/source/WebCore/WebCore-658.28/css/CSSMediaRule.cpp
+Object.defineProperty(CSSOM.CSSMediaRule.prototype, "cssText", {
+  get: function() {
+    var cssTexts = [];
+    for (var i=0, length=this.cssRules.length; i < length; i++) {
+      cssTexts.push(this.cssRules[i].cssText);
+    }
+    return "@media " + this.media.mediaText + " {" + cssTexts.join("") + "}";
+  }
+});
+
+
+//.CommonJS
+exports.CSSMediaRule = CSSOM.CSSMediaRule;
+///CommonJS
+
+},{"./CSSRule":58,"./MediaList":65}],58:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#the-cssrule-interface
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSRule
+ */
+CSSOM.CSSRule = function CSSRule() {
+	this.parentRule = null;
+	this.parentStyleSheet = null;
+};
+
+CSSOM.CSSRule.STYLE_RULE = 1;
+CSSOM.CSSRule.IMPORT_RULE = 3;
+CSSOM.CSSRule.MEDIA_RULE = 4;
+CSSOM.CSSRule.FONT_FACE_RULE = 5;
+CSSOM.CSSRule.PAGE_RULE = 6;
+CSSOM.CSSRule.WEBKIT_KEYFRAMES_RULE = 8;
+CSSOM.CSSRule.WEBKIT_KEYFRAME_RULE = 9;
+
+// Obsolete in CSSOM http://dev.w3.org/csswg/cssom/
+//CSSOM.CSSRule.UNKNOWN_RULE = 0;
+//CSSOM.CSSRule.CHARSET_RULE = 2;
+
+// Never implemented
+//CSSOM.CSSRule.VARIABLES_RULE = 7;
+
+CSSOM.CSSRule.prototype = {
+	constructor: CSSOM.CSSRule
+	//FIXME
+};
+
+
+//.CommonJS
+exports.CSSRule = CSSOM.CSSRule;
+///CommonJS
+
+},{}],59:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleDeclaration
+ */
+CSSOM.CSSStyleDeclaration = function CSSStyleDeclaration(){
+	this.length = 0;
+	this.parentRule = null;
+
+	// NON-STANDARD
+	this._importants = {};
+};
+
+
+CSSOM.CSSStyleDeclaration.prototype = {
+
+	constructor: CSSOM.CSSStyleDeclaration,
+
+	/**
+	 *
+	 * @param {string} name
+	 * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleDeclaration-getPropertyValue
+	 * @return {string} the value of the property if it has been explicitly set for this declaration block.
+	 * Returns the empty string if the property has not been set.
+	 */
+	getPropertyValue: function(name) {
+		return this[name] || "";
+	},
+
+	/**
+	 *
+	 * @param {string} name
+	 * @param {string} value
+	 * @param {string} [priority=null] "important" or null
+	 * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleDeclaration-setProperty
+	 */
+	setProperty: function(name, value, priority) {
+		if (this[name]) {
+			// Property already exist. Overwrite it.
+			var index = Array.prototype.indexOf.call(this, name);
+			if (index < 0) {
+				this[this.length] = name;
+				this.length++;
+			}
+		} else {
+			// New property.
+			this[this.length] = name;
+			this.length++;
+		}
+		this[name] = value;
+		this._importants[name] = priority;
+	},
+
+	/**
+	 *
+	 * @param {string} name
+	 * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleDeclaration-removeProperty
+	 * @return {string} the value of the property if it has been explicitly set for this declaration block.
+	 * Returns the empty string if the property has not been set or the property name does not correspond to a known CSS property.
+	 */
+	removeProperty: function(name) {
+		if (!(name in this)) {
+			return "";
+		}
+		var index = Array.prototype.indexOf.call(this, name);
+		if (index < 0) {
+			return "";
+		}
+		var prevValue = this[name];
+		this[name] = "";
+
+		// That's what WebKit and Opera do
+		Array.prototype.splice.call(this, index, 1);
+
+		// That's what Firefox does
+		//this[index] = ""
+
+		return prevValue;
+	},
+
+	getPropertyCSSValue: function() {
+		//FIXME
+	},
+
+	/**
+	 *
+	 * @param {String} name
+	 */
+	getPropertyPriority: function(name) {
+		return this._importants[name] || "";
+	},
+
+
+	/**
+	 *   element.style.overflow = "auto"
+	 *   element.style.getPropertyShorthand("overflow-x")
+	 *   -> "overflow"
+	 */
+	getPropertyShorthand: function() {
+		//FIXME
+	},
+
+	isPropertyImplicit: function() {
+		//FIXME
+	},
+
+	// Doesn't work in IE < 9
+	get cssText(){
+		var properties = [];
+		for (var i=0, length=this.length; i < length; ++i) {
+			var name = this[i];
+			var value = this.getPropertyValue(name);
+			var priority = this.getPropertyPriority(name);
+			if (priority) {
+				priority = " !" + priority;
+			}
+			properties[i] = name + ": " + value + priority + ";";
+		}
+		return properties.join(" ");
+	},
+
+	set cssText(cssText){
+		var i, name;
+		for (i = this.length; i--;) {
+			name = this[i];
+			this[name] = "";
+		}
+		Array.prototype.splice.call(this, 0, this.length);
+		this._importants = {};
+
+		var dummyRule = CSSOM.parse('#bogus{' + cssText + '}').cssRules[0].style;
+		var length = dummyRule.length;
+		for (i = 0; i < length; ++i) {
+			name = dummyRule[i];
+			this.setProperty(dummyRule[i], dummyRule.getPropertyValue(name), dummyRule.getPropertyPriority(name));
+		}
+	}
+};
+
+
+//.CommonJS
+exports.CSSStyleDeclaration = CSSOM.CSSStyleDeclaration;
+CSSOM.parse = _dereq_('./parse').parse; // Cannot be included sooner due to the mutual dependency between parse.js and CSSStyleDeclaration.js
+///CommonJS
+
+},{"./parse":69}],60:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSStyleDeclaration: _dereq_("./CSSStyleDeclaration").CSSStyleDeclaration,
+	CSSRule: _dereq_("./CSSRule").CSSRule
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#cssstylerule
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleRule
+ */
+CSSOM.CSSStyleRule = function CSSStyleRule() {
+	CSSOM.CSSRule.call(this);
+	this.selectorText = "";
+	this.style = new CSSOM.CSSStyleDeclaration;
+	this.style.parentRule = this;
+};
+
+CSSOM.CSSStyleRule.prototype = new CSSOM.CSSRule;
+CSSOM.CSSStyleRule.prototype.constructor = CSSOM.CSSStyleRule;
+CSSOM.CSSStyleRule.prototype.type = 1;
+
+Object.defineProperty(CSSOM.CSSStyleRule.prototype, "cssText", {
+	get: function() {
+		var text;
+		if (this.selectorText) {
+			text = this.selectorText + " {" + this.style.cssText + "}";
+		} else {
+			text = "";
+		}
+		return text;
+	},
+	set: function(cssText) {
+		var rule = CSSOM.CSSStyleRule.parse(cssText);
+		this.style = rule.style;
+		this.selectorText = rule.selectorText;
+	}
+});
+
+
+/**
+ * NON-STANDARD
+ * lightweight version of parse.js.
+ * @param {string} ruleText
+ * @return CSSStyleRule
+ */
+CSSOM.CSSStyleRule.parse = function(ruleText) {
+	var i = 0;
+	var state = "selector";
+	var index;
+	var j = i;
+	var buffer = "";
+
+	var SIGNIFICANT_WHITESPACE = {
+		"selector": true,
+		"value": true
+	};
+
+	var styleRule = new CSSOM.CSSStyleRule;
+	var selector, name, value, priority="";
+
+	for (var character; character = ruleText.charAt(i); i++) {
+
+		switch (character) {
+
+		case " ":
+		case "\t":
+		case "\r":
+		case "\n":
+		case "\f":
+			if (SIGNIFICANT_WHITESPACE[state]) {
+				// Squash 2 or more white-spaces in the row into 1
+				switch (ruleText.charAt(i - 1)) {
+					case " ":
+					case "\t":
+					case "\r":
+					case "\n":
+					case "\f":
+						break;
+					default:
+						buffer += " ";
+						break;
+				}
+			}
+			break;
+
+		// String
+		case '"':
+			j = i + 1;
+			index = ruleText.indexOf('"', j) + 1;
+			if (!index) {
+				throw '" is missing';
+			}
+			buffer += ruleText.slice(i, index);
+			i = index - 1;
+			break;
+
+		case "'":
+			j = i + 1;
+			index = ruleText.indexOf("'", j) + 1;
+			if (!index) {
+				throw "' is missing";
+			}
+			buffer += ruleText.slice(i, index);
+			i = index - 1;
+			break;
+
+		// Comment
+		case "/":
+			if (ruleText.charAt(i + 1) === "*") {
+				i += 2;
+				index = ruleText.indexOf("*/", i);
+				if (index === -1) {
+					throw new SyntaxError("Missing */");
+				} else {
+					i = index + 1;
+				}
+			} else {
+				buffer += character;
+			}
+			break;
+
+		case "{":
+			if (state === "selector") {
+				styleRule.selectorText = buffer.trim();
+				buffer = "";
+				state = "name";
+			}
+			break;
+
+		case ":":
+			if (state === "name") {
+				name = buffer.trim();
+				buffer = "";
+				state = "value";
+			} else {
+				buffer += character;
+			}
+			break;
+
+		case "!":
+			if (state === "value" && ruleText.indexOf("!important", i) === i) {
+				priority = "important";
+				i += "important".length;
+			} else {
+				buffer += character;
+			}
+			break;
+
+		case ";":
+			if (state === "value") {
+				styleRule.style.setProperty(name, buffer.trim(), priority);
+				priority = "";
+				buffer = "";
+				state = "name";
+			} else {
+				buffer += character;
+			}
+			break;
+
+		case "}":
+			if (state === "value") {
+				styleRule.style.setProperty(name, buffer.trim(), priority);
+				priority = "";
+				buffer = "";
+			} else if (state === "name") {
+				break;
+			} else {
+				buffer += character;
+			}
+			state = "selector";
+			break;
+
+		default:
+			buffer += character;
+			break;
+
+		}
+	}
+
+	return styleRule;
+
+};
+
+
+//.CommonJS
+exports.CSSStyleRule = CSSOM.CSSStyleRule;
+///CommonJS
+
+},{"./CSSRule":58,"./CSSStyleDeclaration":59}],61:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	StyleSheet: _dereq_("./StyleSheet").StyleSheet,
+	CSSStyleRule: _dereq_("./CSSStyleRule").CSSStyleRule
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleSheet
+ */
+CSSOM.CSSStyleSheet = function CSSStyleSheet() {
+	CSSOM.StyleSheet.call(this);
+	this.cssRules = [];
+};
+
+
+CSSOM.CSSStyleSheet.prototype = new CSSOM.StyleSheet;
+CSSOM.CSSStyleSheet.prototype.constructor = CSSOM.CSSStyleSheet;
+
+
+/**
+ * Used to insert a new rule into the style sheet. The new rule now becomes part of the cascade.
+ *
+ *   sheet = new Sheet("body {margin: 0}")
+ *   sheet.toString()
+ *   -> "body{margin:0;}"
+ *   sheet.insertRule("img {border: none}", 0)
+ *   -> 0
+ *   sheet.toString()
+ *   -> "img{border:none;}body{margin:0;}"
+ *
+ * @param {string} rule
+ * @param {number} index
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleSheet-insertRule
+ * @return {number} The index within the style sheet's rule collection of the newly inserted rule.
+ */
+CSSOM.CSSStyleSheet.prototype.insertRule = function(rule, index) {
+	if (index < 0 || index > this.cssRules.length) {
+		throw new RangeError("INDEX_SIZE_ERR");
+	}
+	var cssRule = CSSOM.parse(rule).cssRules[0];
+	cssRule.parentStyleSheet = this;
+	this.cssRules.splice(index, 0, cssRule);
+	return index;
+};
+
+
+/**
+ * Used to delete a rule from the style sheet.
+ *
+ *   sheet = new Sheet("img{border:none} body{margin:0}")
+ *   sheet.toString()
+ *   -> "img{border:none;}body{margin:0;}"
+ *   sheet.deleteRule(0)
+ *   sheet.toString()
+ *   -> "body{margin:0;}"
+ *
+ * @param {number} index within the style sheet's rule list of the rule to remove.
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSStyleSheet-deleteRule
+ */
+CSSOM.CSSStyleSheet.prototype.deleteRule = function(index) {
+	if (index < 0 || index >= this.cssRules.length) {
+		throw new RangeError("INDEX_SIZE_ERR");
+	}
+	this.cssRules.splice(index, 1);
+};
+
+
+/**
+ * NON-STANDARD
+ * @return {string} serialize stylesheet
+ */
+CSSOM.CSSStyleSheet.prototype.toString = function() {
+	var result = "";
+	var rules = this.cssRules;
+	for (var i=0; i<rules.length; i++) {
+		result += rules[i].cssText + "\n";
+	}
+	return result;
+};
+
+
+//.CommonJS
+exports.CSSStyleSheet = CSSOM.CSSStyleSheet;
+CSSOM.parse = _dereq_('./parse').parse; // Cannot be included sooner due to the mutual dependency between parse.js and CSSStyleSheet.js
+///CommonJS
+
+},{"./CSSStyleRule":60,"./StyleSheet":66,"./parse":69}],62:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSValue
+ *
+ * TODO: add if needed
+ */
+CSSOM.CSSValue = function CSSValue() {
+};
+
+CSSOM.CSSValue.prototype = {
+	constructor: CSSOM.CSSValue,
+
+	// @see: http://www.w3.org/TR/DOM-Level-2-Style/css.html#CSS-CSSValue
+	set cssText(text) {
+		var name = this._getConstructorName();
+
+		throw new Exception('DOMException: property "cssText" of "' + name + '" is readonly!');
+	},
+
+	get cssText() {
+		var name = this._getConstructorName();
+
+		throw new Exception('getter "cssText" of "' + name + '" is not implemented!');
+	},
+
+	_getConstructorName: function() {
+		var s = this.constructor.toString(),
+				c = s.match(/function\s([^\(]+)/),
+				name = c[1];
+
+		return name;
+	}
+};
+
+
+//.CommonJS
+exports.CSSValue = CSSOM.CSSValue;
+///CommonJS
+
+},{}],63:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSValue: _dereq_('./CSSValue').CSSValue
+};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://msdn.microsoft.com/en-us/library/ms537634(v=vs.85).aspx
+ *
+ */
+CSSOM.CSSValueExpression = function CSSValueExpression(token, idx) {
+	this._token = token;
+	this._idx = idx;
+};
+
+CSSOM.CSSValueExpression.prototype = new CSSOM.CSSValue;
+CSSOM.CSSValueExpression.prototype.constructor = CSSOM.CSSValueExpression;
+
+/**
+ * parse css expression() value
+ *
+ * @return {Object}
+ *				 - error:
+ *				 or
+ *				 - idx:
+ *				 - expression:
+ *
+ * Example:
+ *
+ * .selector {
+ *		zoom: expression(documentElement.clientWidth > 1000 ? '1000px' : 'auto');
+ * }
+ */
+CSSOM.CSSValueExpression.prototype.parse = function() {
+	var token = this._token,
+			idx = this._idx;
+
+	var character = '',
+			expression = '',
+			error = '',
+			info,
+			paren = [];
+
+
+	for (; ; ++idx) {
+		character = token.charAt(idx);
+
+		// end of token
+		if (character == '') {
+			error = 'css expression error: unfinished expression!';
+			break;
+		}
+
+		switch(character) {
+			case '(':
+				paren.push(character);
+				expression += character;
+				break;
+
+			case ')':
+				paren.pop(character);
+				expression += character;
+				break;
+
+			case '/':
+				if (info = this._parseJSComment(token, idx)) { // comment?
+					if (info.error) {
+						error = 'css expression error: unfinished comment in expression!';
+					} else {
+						idx = info.idx;
+						// ignore the comment
+					}
+				} else if (info = this._parseJSRexExp(token, idx)) { // regexp
+					idx = info.idx;
+					expression += info.text;
+				} else { // other
+					expression += character;
+				}
+				break;
+
+			case "'":
+			case '"':
+				info = this._parseJSString(token, idx, character);
+				if (info) { // string
+					idx = info.idx;
+					expression += info.text;
+				} else {
+					expression += character;
+				}
+				break;
+
+			default:
+				expression += character;
+				break;
+		}
+
+		if (error) {
+			break;
+		}
+
+		// end of expression
+		if (paren.length == 0) {
+			break;
+		}
+	}
+
+	var ret;
+	if (error) {
+		ret = {
+			error: error
+		}
+	} else {
+		ret = {
+			idx: idx,
+			expression: expression
+		}
+	}
+
+	return ret;
+};
+
+
+/**
+ *
+ * @return {Object|false}
+ *          - idx:
+ *          - text:
+ *          or
+ *          - error:
+ *          or
+ *          false
+ *
+ */
+CSSOM.CSSValueExpression.prototype._parseJSComment = function(token, idx) {
+	var nextChar = token.charAt(idx + 1),
+			text;
+
+	if (nextChar == '/' || nextChar == '*') {
+		var startIdx = idx,
+				endIdx,
+				commentEndChar;
+
+		if (nextChar == '/') { // line comment
+			commentEndChar = '\n';
+		} else if (nextChar == '*') { // block comment
+			commentEndChar = '*/';
+		}
+
+		endIdx = token.indexOf(commentEndChar, startIdx + 1 + 1);
+		if (endIdx !== -1) {
+			endIdx = endIdx + commentEndChar.length - 1;
+			text = token.substring(idx, endIdx + 1);
+			return {
+				idx: endIdx,
+				text: text
+			}
+		} else {
+			error = 'css expression error: unfinished comment in expression!';
+			return {
+				error: error
+			}
+		}
+	} else {
+		return false;
+	}
+};
+
+
+/**
+ *
+ * @return {Object|false}
+ *					- idx:
+ *					- text:
+ *					or 
+ *					false
+ *
+ */
+CSSOM.CSSValueExpression.prototype._parseJSString = function(token, idx, sep) {
+	var endIdx = this._findMatchedIdx(token, idx, sep),
+			text;
+
+	if (endIdx === -1) {
+		return false;
+	} else {
+		text = token.substring(idx, endIdx + sep.length);
+
+		return {
+			idx: endIdx,
+			text: text
+		}
+	}
+};
+
+
+/**
+ * parse regexp in css expression
+ *
+ * @return {Object|false}
+ *				 - idx:
+ *				 - regExp:
+ *				 or 
+ *				 false
+ */
+
+/*
+
+all legal RegExp
+ 
+/a/
+(/a/)
+[/a/]
+[12, /a/]
+
+!/a/
+
++/a/
+-/a/
+* /a/
+/ /a/
+%/a/
+
+===/a/
+!==/a/
+==/a/
+!=/a/
+>/a/
+>=/a/
+</a/
+<=/a/
+
+&/a/
+|/a/
+^/a/
+~/a/
+<</a/
+>>/a/
+>>>/a/
+
+&&/a/
+||/a/
+?/a/
+=/a/
+,/a/
+
+		delete /a/
+				in /a/
+instanceof /a/
+			 new /a/
+		typeof /a/
+			void /a/
+
+*/
+CSSOM.CSSValueExpression.prototype._parseJSRexExp = function(token, idx) {
+	var before = token.substring(0, idx).replace(/\s+$/, ""),
+			legalRegx = [
+				/^$/,
+				/\($/,
+				/\[$/,
+				/\!$/,
+				/\+$/,
+				/\-$/,
+				/\*$/,
+				/\/\s+/,
+				/\%$/,
+				/\=$/,
+				/\>$/,
+				/\<$/,
+				/\&$/,
+				/\|$/,
+				/\^$/,
+				/\~$/,
+				/\?$/,
+				/\,$/,
+				/delete$/,
+				/in$/,
+				/instanceof$/,
+				/new$/,
+				/typeof$/,
+				/void$/,
+			];
+
+	var isLegal = legalRegx.some(function(reg) {
+		return reg.test(before);
+	});
+
+	if (!isLegal) {
+		return false;
+	} else {
+		var sep = '/';
+
+		// same logic as string
+		return this._parseJSString(token, idx, sep);
+	}
+};
+
+
+/**
+ *
+ * find next sep(same line) index in `token`
+ *
+ * @return {Number}
+ *
+ */
+CSSOM.CSSValueExpression.prototype._findMatchedIdx = function(token, idx, sep) {
+	var startIdx = idx,
+			endIdx;
+
+	var NOT_FOUND = -1;
+
+	while(true) {
+		endIdx = token.indexOf(sep, startIdx + 1);
+
+		if (endIdx === -1) { // not found
+			endIdx = NOT_FOUND;
+			break;
+		} else {
+			var text = token.substring(idx + 1, endIdx),
+					matched = text.match(/\\+$/);
+			if (!matched || matched[0] % 2 == 0) { // not escaped
+				break;
+			} else {
+				startIdx = endIdx;
+			}
+		}
+	}
+
+	// boundary must be in the same line(js sting or regexp)
+	var nextNewLineIdx = token.indexOf('\n', idx + 1);
+	if (nextNewLineIdx < endIdx) {
+		endIdx = NOT_FOUND;
+	}
+
+
+	return endIdx;
+}
+
+
+
+
+//.CommonJS
+exports.CSSValueExpression = CSSOM.CSSValueExpression;
+///CommonJS
+
+},{"./CSSValue":62}],64:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see https://developer.mozilla.org/en/CSS/@-moz-document
+ */
+CSSOM.MatcherList = function MatcherList(){
+    this.length = 0;
+};
+
+CSSOM.MatcherList.prototype = {
+
+    constructor: CSSOM.MatcherList,
+
+    /**
+     * @return {string}
+     */
+    get matcherText() {
+        return Array.prototype.join.call(this, ", ");
+    },
+
+    /**
+     * @param {string} value
+     */
+    set matcherText(value) {
+        // just a temporary solution, actually it may be wrong by just split the value with ',', because a url can include ','.
+        var values = value.split(",");
+        var length = this.length = values.length;
+        for (var i=0; i<length; i++) {
+            this[i] = values[i].trim();
+        }
+    },
+
+    /**
+     * @param {string} matcher
+     */
+    appendMatcher: function(matcher) {
+        if (Array.prototype.indexOf.call(this, matcher) === -1) {
+            this[this.length] = matcher;
+            this.length++;
+        }
+    },
+
+    /**
+     * @param {string} matcher
+     */
+    deleteMatcher: function(matcher) {
+        var index = Array.prototype.indexOf.call(this, matcher);
+        if (index !== -1) {
+            Array.prototype.splice.call(this, index, 1);
+        }
+    }
+
+};
+
+
+//.CommonJS
+exports.MatcherList = CSSOM.MatcherList;
+///CommonJS
+
+},{}],65:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#the-medialist-interface
+ */
+CSSOM.MediaList = function MediaList(){
+	this.length = 0;
+};
+
+CSSOM.MediaList.prototype = {
+
+	constructor: CSSOM.MediaList,
+
+	/**
+	 * @return {string}
+	 */
+	get mediaText() {
+		return Array.prototype.join.call(this, ", ");
+	},
+
+	/**
+	 * @param {string} value
+	 */
+	set mediaText(value) {
+		var values = value.split(",");
+		var length = this.length = values.length;
+		for (var i=0; i<length; i++) {
+			this[i] = values[i].trim();
+		}
+	},
+
+	/**
+	 * @param {string} medium
+	 */
+	appendMedium: function(medium) {
+		if (Array.prototype.indexOf.call(this, medium) === -1) {
+			this[this.length] = medium;
+			this.length++;
+		}
+	},
+
+	/**
+	 * @param {string} medium
+	 */
+	deleteMedium: function(medium) {
+		var index = Array.prototype.indexOf.call(this, medium);
+		if (index !== -1) {
+			Array.prototype.splice.call(this, index, 1);
+		}
+	}
+
+};
+
+
+//.CommonJS
+exports.MediaList = CSSOM.MediaList;
+///CommonJS
+
+},{}],66:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @constructor
+ * @see http://dev.w3.org/csswg/cssom/#the-stylesheet-interface
+ */
+CSSOM.StyleSheet = function StyleSheet() {
+	this.parentStyleSheet = null;
+};
+
+
+//.CommonJS
+exports.StyleSheet = CSSOM.StyleSheet;
+///CommonJS
+
+},{}],67:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {
+	CSSStyleSheet: _dereq_("./CSSStyleSheet").CSSStyleSheet,
+	CSSStyleRule: _dereq_("./CSSStyleRule").CSSStyleRule,
+	CSSMediaRule: _dereq_("./CSSMediaRule").CSSMediaRule,
+	CSSStyleDeclaration: _dereq_("./CSSStyleDeclaration").CSSStyleDeclaration,
+	CSSKeyframeRule: _dereq_('./CSSKeyframeRule').CSSKeyframeRule,
+	CSSKeyframesRule: _dereq_('./CSSKeyframesRule').CSSKeyframesRule
+};
+///CommonJS
+
+
+/**
+ * Produces a deep copy of stylesheet — the instance variables of stylesheet are copied recursively.
+ * @param {CSSStyleSheet|CSSOM.CSSStyleSheet} stylesheet
+ * @nosideeffects
+ * @return {CSSOM.CSSStyleSheet}
+ */
+CSSOM.clone = function clone(stylesheet) {
+
+	var cloned = new CSSOM.CSSStyleSheet;
+
+	var rules = stylesheet.cssRules;
+	if (!rules) {
+		return cloned;
+	}
+
+	var RULE_TYPES = {
+		1: CSSOM.CSSStyleRule,
+		4: CSSOM.CSSMediaRule,
+		//3: CSSOM.CSSImportRule,
+		//5: CSSOM.CSSFontFaceRule,
+		//6: CSSOM.CSSPageRule,
+		8: CSSOM.CSSKeyframesRule,
+		9: CSSOM.CSSKeyframeRule
+	};
+
+	for (var i=0, rulesLength=rules.length; i < rulesLength; i++) {
+		var rule = rules[i];
+		var ruleClone = cloned.cssRules[i] = new RULE_TYPES[rule.type];
+
+		var style = rule.style;
+		if (style) {
+			var styleClone = ruleClone.style = new CSSOM.CSSStyleDeclaration;
+			for (var j=0, styleLength=style.length; j < styleLength; j++) {
+				var name = styleClone[j] = style[j];
+				styleClone[name] = style[name];
+				styleClone._importants[name] = style.getPropertyPriority(name);
+			}
+			styleClone.length = style.length;
+		}
+
+		if (rule.hasOwnProperty('keyText')) {
+			ruleClone.keyText = rule.keyText;
+		}
+
+		if (rule.hasOwnProperty('selectorText')) {
+			ruleClone.selectorText = rule.selectorText;
+		}
+
+		if (rule.hasOwnProperty('mediaText')) {
+			ruleClone.mediaText = rule.mediaText;
+		}
+
+		if (rule.hasOwnProperty('cssRules')) {
+			ruleClone.cssRules = clone(rule).cssRules;
+		}
+	}
+
+	return cloned;
+
+};
+
+//.CommonJS
+exports.clone = CSSOM.clone;
+///CommonJS
+
+},{"./CSSKeyframeRule":55,"./CSSKeyframesRule":56,"./CSSMediaRule":57,"./CSSStyleDeclaration":59,"./CSSStyleRule":60,"./CSSStyleSheet":61}],68:[function(_dereq_,module,exports){
+'use strict';
+
+exports.CSSStyleDeclaration = _dereq_('./CSSStyleDeclaration').CSSStyleDeclaration;
+exports.CSSRule = _dereq_('./CSSRule').CSSRule;
+exports.CSSStyleRule = _dereq_('./CSSStyleRule').CSSStyleRule;
+exports.MediaList = _dereq_('./MediaList').MediaList;
+exports.CSSMediaRule = _dereq_('./CSSMediaRule').CSSMediaRule;
+exports.CSSImportRule = _dereq_('./CSSImportRule').CSSImportRule;
+exports.CSSFontFaceRule = _dereq_('./CSSFontFaceRule').CSSFontFaceRule;
+exports.StyleSheet = _dereq_('./StyleSheet').StyleSheet;
+exports.CSSStyleSheet = _dereq_('./CSSStyleSheet').CSSStyleSheet;
+exports.CSSKeyframesRule = _dereq_('./CSSKeyframesRule').CSSKeyframesRule;
+exports.CSSKeyframeRule = _dereq_('./CSSKeyframeRule').CSSKeyframeRule;
+exports.MatcherList = _dereq_('./MatcherList').MatcherList;
+exports.CSSDocumentRule = _dereq_('./CSSDocumentRule').CSSDocumentRule;
+exports.CSSValue = _dereq_('./CSSValue').CSSValue;
+exports.CSSValueExpression = _dereq_('./CSSValueExpression').CSSValueExpression;
+exports.parse = _dereq_('./parse').parse;
+exports.clone = _dereq_('./clone').clone;
+
+},{"./CSSDocumentRule":52,"./CSSFontFaceRule":53,"./CSSImportRule":54,"./CSSKeyframeRule":55,"./CSSKeyframesRule":56,"./CSSMediaRule":57,"./CSSRule":58,"./CSSStyleDeclaration":59,"./CSSStyleRule":60,"./CSSStyleSheet":61,"./CSSValue":62,"./CSSValueExpression":63,"./MatcherList":64,"./MediaList":65,"./StyleSheet":66,"./clone":67,"./parse":69}],69:[function(_dereq_,module,exports){
+//.CommonJS
+var CSSOM = {};
+///CommonJS
+
+
+/**
+ * @param {string} token
+ */
+CSSOM.parse = function parse(token) {
+
+	var i = 0;
+
+	/**
+		"before-selector" or
+		"selector" or
+		"atRule" or
+		"atBlock" or
+		"before-name" or
+		"name" or
+		"before-value" or
+		"value"
+	*/
+	var state = "before-selector";
+
+	var index;
+	var buffer = "";
+
+	var SIGNIFICANT_WHITESPACE = {
+		"selector": true,
+		"value": true,
+		"atRule": true,
+		"importRule-begin": true,
+		"importRule": true,
+		"atBlock": true,
+		'documentRule-begin': true
+	};
+
+	var styleSheet = new CSSOM.CSSStyleSheet;
+
+	// @type CSSStyleSheet|CSSMediaRule|CSSFontFaceRule|CSSKeyframesRule|CSSDocumentRule
+	var currentScope = styleSheet;
+
+	// @type CSSMediaRule|CSSKeyframesRule|CSSDocumentRule
+	var parentRule;
+
+	var selector, name, value, priority="", styleRule, mediaRule, importRule, fontFaceRule, keyframesRule, keyframeRule, documentRule;
+
+	var atKeyframesRegExp = /@(-(?:\w+-)+)?keyframes/g;
+
+	var parseError = function(message) {
+		var lines = token.substring(0, i).split('\n');
+		var lineCount = lines.length;
+		var charCount = lines.pop().length + 1;
+		var error = new Error(message + ' (line ' + lineCount + ', char ' + charCount + ')');
+		error.line = lineCount;
+		error.char = charCount;
+		error.styleSheet = styleSheet;
+		throw error;
+	};
+
+	for (var character; character = token.charAt(i); i++) {
+
+		switch (character) {
+
+		case " ":
+		case "\t":
+		case "\r":
+		case "\n":
+		case "\f":
+			if (SIGNIFICANT_WHITESPACE[state]) {
+				buffer += character;
+			}
+			break;
+
+		// String
+		case '"':
+			index = i + 1;
+			do {
+				index = token.indexOf('"', index) + 1;
+				if (!index) {
+					parseError('Unmatched "');
+				}
+			} while (token[index - 2] === '\\')
+			buffer += token.slice(i, index);
+			i = index - 1;
+			switch (state) {
+				case 'before-value':
+					state = 'value';
+					break;
+				case 'importRule-begin':
+					state = 'importRule';
+					break;
+			}
+			break;
+
+		case "'":
+			index = i + 1;
+			do {
+				index = token.indexOf("'", index) + 1;
+				if (!index) {
+					parseError("Unmatched '");
+				}
+			} while (token[index - 2] === '\\')
+			buffer += token.slice(i, index);
+			i = index - 1;
+			switch (state) {
+				case 'before-value':
+					state = 'value';
+					break;
+				case 'importRule-begin':
+					state = 'importRule';
+					break;
+			}
+			break;
+
+		// Comment
+		case "/":
+			if (token.charAt(i + 1) === "*") {
+				i += 2;
+				index = token.indexOf("*/", i);
+				if (index === -1) {
+					parseError("Missing */");
+				} else {
+					i = index + 1;
+				}
+			} else {
+				buffer += character;
+			}
+			if (state === "importRule-begin") {
+				buffer += " ";
+				state = "importRule";
+			}
+			break;
+
+		// At-rule
+		case "@":
+			if (token.indexOf("@-moz-document", i) === i) {
+				state = "documentRule-begin";
+				documentRule = new CSSOM.CSSDocumentRule;
+				documentRule.__starts = i;
+				i += "-moz-document".length;
+				buffer = "";
+				break;
+			} else if (token.indexOf("@media", i) === i) {
+				state = "atBlock";
+				mediaRule = new CSSOM.CSSMediaRule;
+				mediaRule.__starts = i;
+				i += "media".length;
+				buffer = "";
+				break;
+			} else if (token.indexOf("@import", i) === i) {
+				state = "importRule-begin";
+				i += "import".length;
+				buffer += "@import";
+				break;
+			} else if (token.indexOf("@font-face", i) === i) {
+				state = "fontFaceRule-begin";
+				i += "font-face".length;
+				fontFaceRule = new CSSOM.CSSFontFaceRule;
+				fontFaceRule.__starts = i;
+				buffer = "";
+				break;
+			} else {
+				atKeyframesRegExp.lastIndex = i;
+				var matchKeyframes = atKeyframesRegExp.exec(token);
+				if (matchKeyframes && matchKeyframes.index === i) {
+					state = "keyframesRule-begin";
+					keyframesRule = new CSSOM.CSSKeyframesRule;
+					keyframesRule.__starts = i;
+					keyframesRule._vendorPrefix = matchKeyframes[1]; // Will come out as undefined if no prefix was found
+					i += matchKeyframes[0].length - 1;
+					buffer = "";
+					break;
+				} else if (state == "selector") {
+					state = "atRule";
+				}
+			}
+			buffer += character;
+			break;
+
+		case "{":
+			if (state === "selector" || state === "atRule") {
+				styleRule.selectorText = buffer.trim();
+				styleRule.style.__starts = i;
+				buffer = "";
+				state = "before-name";
+			} else if (state === "atBlock") {
+				mediaRule.media.mediaText = buffer.trim();
+				currentScope = parentRule = mediaRule;
+				mediaRule.parentStyleSheet = styleSheet;
+				buffer = "";
+				state = "before-selector";
+			} else if (state === "fontFaceRule-begin") {
+				if (parentRule) {
+					fontFaceRule.parentRule = parentRule;
+				}
+				fontFaceRule.parentStyleSheet = styleSheet;
+				styleRule = fontFaceRule;
+				buffer = "";
+				state = "before-name";
+			} else if (state === "keyframesRule-begin") {
+				keyframesRule.name = buffer.trim();
+				if (parentRule) {
+					keyframesRule.parentRule = parentRule;
+				}
+				keyframesRule.parentStyleSheet = styleSheet;
+				currentScope = parentRule = keyframesRule;
+				buffer = "";
+				state = "keyframeRule-begin";
+			} else if (state === "keyframeRule-begin") {
+				styleRule = new CSSOM.CSSKeyframeRule;
+				styleRule.keyText = buffer.trim();
+				styleRule.__starts = i;
+				buffer = "";
+				state = "before-name";
+			} else if (state === "documentRule-begin") {
+				// FIXME: what if this '{' is in the url text of the match function?
+				documentRule.matcher.matcherText = buffer.trim();
+				if (parentRule) {
+					documentRule.parentRule = parentRule;
+				}
+				currentScope = parentRule = documentRule;
+				documentRule.parentStyleSheet = styleSheet;
+				buffer = "";
+				state = "before-selector";
+			}
+			break;
+
+		case ":":
+			if (state === "name") {
+				name = buffer.trim();
+				buffer = "";
+				state = "before-value";
+			} else {
+				buffer += character;
+			}
+			break;
+
+		case '(':
+			if (state === 'value') {
+				// ie css expression mode
+				if (buffer.trim() == 'expression') {
+					var info = (new CSSOM.CSSValueExpression(token, i)).parse();
+
+					if (info.error) {
+						parseError(info.error);
+					} else {
+						buffer += info.expression;
+						i = info.idx;
+					}
+				} else {
+					index = token.indexOf(')', i + 1);
+					if (index === -1) {
+						parseError('Unmatched "("');
+					}
+					buffer += token.slice(i, index + 1);
+					i = index;
+				}
+			} else {
+				buffer += character;
+			}
+
+			break;
+
+		case "!":
+			if (state === "value" && token.indexOf("!important", i) === i) {
+				priority = "important";
+				i += "important".length;
+			} else {
+				buffer += character;
+			}
+			break;
+
+		case ";":
+			switch (state) {
+				case "value":
+					styleRule.style.setProperty(name, buffer.trim(), priority);
+					priority = "";
+					buffer = "";
+					state = "before-name";
+					break;
+				case "atRule":
+					buffer = "";
+					state = "before-selector";
+					break;
+				case "importRule":
+					importRule = new CSSOM.CSSImportRule;
+					importRule.parentStyleSheet = importRule.styleSheet.parentStyleSheet = styleSheet;
+					importRule.cssText = buffer + character;
+					styleSheet.cssRules.push(importRule);
+					buffer = "";
+					state = "before-selector";
+					break;
+				default:
+					buffer += character;
+					break;
+			}
+			break;
+
+		case "}":
+			switch (state) {
+				case "value":
+					styleRule.style.setProperty(name, buffer.trim(), priority);
+					priority = "";
+				case "before-name":
+				case "name":
+					styleRule.__ends = i + 1;
+					if (parentRule) {
+						styleRule.parentRule = parentRule;
+					}
+					styleRule.parentStyleSheet = styleSheet;
+					currentScope.cssRules.push(styleRule);
+					buffer = "";
+					if (currentScope.constructor === CSSOM.CSSKeyframesRule) {
+						state = "keyframeRule-begin";
+					} else {
+						state = "before-selector";
+					}
+					break;
+				case "keyframeRule-begin":
+				case "before-selector":
+				case "selector":
+					// End of media/document rule.
+					if (!parentRule) {
+						parseError("Unexpected }");
+					}
+					currentScope.__ends = i + 1;
+					// Nesting rules aren't supported yet
+					styleSheet.cssRules.push(currentScope);
+					currentScope = styleSheet;
+					parentRule = null;
+					buffer = "";
+					state = "before-selector";
+					break;
+			}
+			break;
+
+		default:
+			switch (state) {
+				case "before-selector":
+					state = "selector";
+					styleRule = new CSSOM.CSSStyleRule;
+					styleRule.__starts = i;
+					break;
+				case "before-name":
+					state = "name";
+					break;
+				case "before-value":
+					state = "value";
+					break;
+				case "importRule-begin":
+					state = "importRule";
+					break;
+			}
+			buffer += character;
+			break;
+		}
+	}
+
+	return styleSheet;
+};
+
+
+//.CommonJS
+exports.parse = CSSOM.parse;
+// The following modules cannot be included sooner due to the mutual dependency with parse.js
+CSSOM.CSSStyleSheet = _dereq_("./CSSStyleSheet").CSSStyleSheet;
+CSSOM.CSSStyleRule = _dereq_("./CSSStyleRule").CSSStyleRule;
+CSSOM.CSSImportRule = _dereq_("./CSSImportRule").CSSImportRule;
+CSSOM.CSSMediaRule = _dereq_("./CSSMediaRule").CSSMediaRule;
+CSSOM.CSSFontFaceRule = _dereq_("./CSSFontFaceRule").CSSFontFaceRule;
+CSSOM.CSSStyleDeclaration = _dereq_('./CSSStyleDeclaration').CSSStyleDeclaration;
+CSSOM.CSSKeyframeRule = _dereq_('./CSSKeyframeRule').CSSKeyframeRule;
+CSSOM.CSSKeyframesRule = _dereq_('./CSSKeyframesRule').CSSKeyframesRule;
+CSSOM.CSSValueExpression = _dereq_('./CSSValueExpression').CSSValueExpression;
+CSSOM.CSSDocumentRule = _dereq_('./CSSDocumentRule').CSSDocumentRule;
+///CommonJS
+
+},{"./CSSDocumentRule":52,"./CSSFontFaceRule":53,"./CSSImportRule":54,"./CSSKeyframeRule":55,"./CSSKeyframesRule":56,"./CSSMediaRule":57,"./CSSStyleDeclaration":59,"./CSSStyleRule":60,"./CSSStyleSheet":61,"./CSSValueExpression":63}],70:[function(_dereq_,module,exports){
+module.exports={
+  "name": "juice",
+  "version": "1.5.1",
+  "description": "Inlines css into html source",
+  "main": "./lib/juice",
+  "scripts": {
+    "test": "mocha --reporter spec",
+    "testcover": "istanbul cover node_modules/mocha/bin/_mocha -- -R spec"
+  },
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Guillermo Rauch",
+      "email": "guillermo@learnboost.com"
+    },
+    {
+      "name": "Arian Stolwijk",
+      "email": "arian@aryweb.nl"
+    },
+    {
+      "name": "Paweł Marzec",
+      "email": "rork@cojestgrane.pl"
+    },
+    {
+      "name": "Andrew Kelley",
+      "email": "superjoe30@gmail.com"
+    },
+    {
+      "name": "Francois-Guillaume Ribreau",
+      "email": "npm@fgribreau.com"
+    }
+  ],
+  "dependencies": {
+    "cssom": "0.3.0"
+  },
+  "devDependencies": {
+    "should": "4.0.4",
+    "mocha": "1.21.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Automattic/juice.git"
+  },
+  "gitHead": "909bace6e9bb71b2f5ce96f813478dbb40626ada",
+  "readme": "[![Build Status](https://travis-ci.org/Automattic/juice.png?branch=master)](https://travis-ci.org/Automattic/juice)\n[![Dependency Status](https://david-dm.org/Automattic/juice.png)](https://david-dm.org/Automattic/juice)\n# Juice ![](http://i.imgur.com/jN8Ht.gif)\n\nGiven HTML, juice will inline your CSS properties into the `style` attribute.\n\n## How to use\n\nJuice has a number of functions based on whether you want to process a file, HTML string, or a cheerio document, and whether you want juice to automatically get remote stylesheets, scripts and image dataURIs to inline.\n\nTo inline HTML without getting remote resources, using default options:\n\n```js\nvar juice = require('juice');\nvar result = juice(\"<style>div{color:red;}</style><div/>\");\n```\n\nresult will be:\n```html\n<div style=\"color: red;\"></div>\n```\n\n## What is this useful for ?\n\n- HTML emails. For a comprehensive list of supported selectors see [here](http://www.campaignmonitor.com/css/)\n- Embedding HTML in 3rd-party websites.\n\n## Projects using juice\n\n* [node-email-templates][1] - Node.js module for rendering beautiful emails with [ejs][2] templates and email-friendly inline CSS using [juice][3].\n* [swig-email-templates][4] - Uses [swig][5], which gives you [template inheritance][6], and can generate a [dummy context][7] from a template.\n\n[1]: https://github.com/niftylettuce/node-email-templates\n[2]: https://github.com/visionmedia/ejs\n[3]: https://github.com/Automattic/juice\n[4]: https://github.com/superjoe30/swig-email-templates\n[5]: https://github.com/paularmstrong/swig\n[6]: https://docs.djangoproject.com/en/dev/topics/templates/#template-inheritance\n[7]: https://github.com/superjoe30/swig-dummy-context\n\n## Documentation\n\nJuice is exposed as a standard module, and from CLI with a smaller set of options.\n\n### Options\n\nAll juice methods take an options object that can contain any of these properties, though not every method uses all of these:\n\n * `extraCss` - extra css to apply to the file. Defaults to `\"\"`.\n * `applyStyleTags` - whether to inline styles in `<style></style>` Defaults to `true`.\n * `removeStyleTags` - whether to remove the original `<style></style>` tags after (possibly) inlining the css from them. Defaults to `true`.\n * `preserveMediaQueries` - preserves all media queries (and contained styles) within `<style></style>` tags as a refinement when `removeStyleTags` is `true`. Other styles are removed. Defaults to `false`.\n  * `preserveFontFaces` - preserves all `@font-face` within `<style></style>` tags as a refinement when `removeStyleTags` is `true`. Other styles are removed. Defaults to `false`.\n * `applyWidthAttributes` - whether to use any CSS pixel widths to create `width` attributes on elements set in `juice.widthElements`. Defaults to `false`.\n * `applyAttributesTableElements` - whether to create attributes for styles in `juice.styleToAttribute` on elements set in `juice.tableElements`. Defaults to `false`.\n * `webResources` - An options object that will be passed to [web-resource-inliner](https://www.npmjs.com/package/web-resource-inliner) for juice functions that will get remote resources (`juiceResources` and `juiceFile`). Defaults to `{}`.\n * `inlinePseudoElements` - Whether to insert pseudo elements (`::before` and `::after`) as `<span>` into the DOM. *Note*: Inserting pseudo elements will modify the DOM and may conflict with CSS selectors elsewhere on the page (e.g., `:last-child`).\n * `xmlMode` - whether to output XML/XHTML with all tags closed. Note that the input *must* also be valid XML/XHTML or you will get undesirable results. Defaults to `false`.\n * `preserveImportant` - preserves `!important` in values. Defaults to `false`.\n\n### Methods\n\n#### juice(html [, options])\n\nReturns string containing inlined HTML. Does not fetch remote resources.\n\n * `html` - html string, accepts complete documents as well as fragments\n * `options` - optional, see Options above\n\n#### juice.juiceResources(html, options, callback)\n\nCallback returns string containing inlined HTML. Fetches remote resources.\n\n * `html` - html string\n * `options` - see Options above\n * `callback(err, html)`\n   - `err` - `Error` object or `null`\n   - `html` - inlined HTML\n\n\n#### juice.juiceDocument($ [, options])\n\nReturns string containing inlined HTML. Does not fetch remote resources.\n\n * `$` - a cheerio instance, be sure to use the same cheerio version that juice uses\n * `options` - optional, see Options above`\n\n#### juice.inlineContent(html, css [, options])\n\nThis takes html and css and returns new html with the provided css inlined.\nIt does not look at `<style>` or `<link rel=\"stylesheet\">` elements at all.\n\n * `html` - html string\n * `css` - css string\n * `options` - optional, see Options above\n\n#### juice.inlineDocument($, css [, options])\n\nGiven a cheerio instance and css, this modifies the cheerio instance so that the provided css is inlined. It does not look at `<style>` or `<link rel=\"stylesheet\">` elements at all.\n\n * `$` - a cheerio instance, be sure to use the same cheerio version that juice uses\n * `css` - css string\n * `options` - optional, see Options above\n\n### Global settings\n\n#### juice.ignoredPseudos\n\nArray of ignored pseudo-selectors such as 'hover' and 'active'.\n\n#### juice.widthElements\n\nArray of HTML elements that can receive `width` attributes.\n\n#### juice.styleToAttribute\n\nObject of style property names (key) to their respective attribute names (value).\n\n#### juice.tableElements\n\nArray of table HTML elements that can receive attributes defined in `juice.styleToAttribute`.\n\n#### juice.nonVisualElements\n\nArray of elements that will not have styles inlined because they are not intended to render.\n\n\n### CLI Options\n\nTo use Juice from CLI, run `juice [options] input.html output.html`\n\nCurrent CLI options:\n\n- `--css [filepath]` will load and inject CSS into `extraCss`.\n\n\n## Credits\n\n(The MIT License)\n\nCopyright (c) 2015 Guillermo Rauch &lt;guillermo@learnboost.com&gt;\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n'Software'), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.\nIN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY\nCLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\nTORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\nSOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n\n### 3rd-party\n\n- Uses [cheerio](https://github.com/cheeriojs/cheerio) for the underlying DOM\nrepresentation.\n- Uses [cssom](https://github.com/NV/CSSOM) to parse out CSS selectors and\n[Slick](http://github.com/subtleGradient/slick) to tokenize them.\n- Icon by [UnheardSounds](http://unheardsounds.deviantart.com/gallery/26536908#/d2ngozi)\n",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/Automattic/juice/issues"
+  },
+  "homepage": "https://github.com/Automattic/juice#readme",
+  "_id": "juice@1.5.1",
+  "_shasum": "fcb0fcc0bafd45a46b5e0c2ba6feaa3784947100",
+  "_from": "git://github.com/evidenceprime/juice.git#master",
+  "_resolved": "git://github.com/evidenceprime/juice.git#909bace6e9bb71b2f5ce96f813478dbb40626ada"
+}
+
+},{}],71:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10558,7 +13830,7 @@ function escape(string) {
 
 module.exports = escape;
 
-},{"lodash._basetostring":45}],45:[function(_dereq_,module,exports){
+},{"lodash._basetostring":72}],72:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10582,7 +13854,7 @@ function baseToString(value) {
 
 module.exports = baseToString;
 
-},{}],46:[function(_dereq_,module,exports){
+},{}],73:[function(_dereq_,module,exports){
 /**
  * lodash 3.3.2 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10850,7 +14122,7 @@ var merge = createAssigner(baseMerge);
 
 module.exports = merge;
 
-},{"lodash._arraycopy":47,"lodash._arrayeach":48,"lodash._createassigner":49,"lodash.isarguments":54,"lodash.isarray":55,"lodash.isplainobject":56,"lodash.istypedarray":58,"lodash.keys":59,"lodash.toplainobject":61}],47:[function(_dereq_,module,exports){
+},{"lodash._arraycopy":74,"lodash._arrayeach":75,"lodash._createassigner":76,"lodash.isarguments":81,"lodash.isarray":82,"lodash.isplainobject":83,"lodash.istypedarray":85,"lodash.keys":86,"lodash.toplainobject":88}],74:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10881,7 +14153,7 @@ function arrayCopy(source, array) {
 
 module.exports = arrayCopy;
 
-},{}],48:[function(_dereq_,module,exports){
+},{}],75:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10914,7 +14186,7 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],49:[function(_dereq_,module,exports){
+},{}],76:[function(_dereq_,module,exports){
 /**
  * lodash 3.1.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -10968,7 +14240,7 @@ function createAssigner(assigner) {
 
 module.exports = createAssigner;
 
-},{"lodash._bindcallback":50,"lodash._isiterateecall":51,"lodash.restparam":52}],50:[function(_dereq_,module,exports){
+},{"lodash._bindcallback":77,"lodash._isiterateecall":78,"lodash.restparam":79}],77:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11035,7 +14307,7 @@ function identity(value) {
 
 module.exports = bindCallback;
 
-},{}],51:[function(_dereq_,module,exports){
+},{}],78:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.9 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11169,7 +14441,7 @@ function isObject(value) {
 
 module.exports = isIterateeCall;
 
-},{}],52:[function(_dereq_,module,exports){
+},{}],79:[function(_dereq_,module,exports){
 /**
  * lodash 3.6.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11238,7 +14510,7 @@ function restParam(func, start) {
 
 module.exports = restParam;
 
-},{}],53:[function(_dereq_,module,exports){
+},{}],80:[function(_dereq_,module,exports){
 /**
  * lodash 3.9.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11377,7 +14649,7 @@ function isNative(value) {
 
 module.exports = getNative;
 
-},{}],54:[function(_dereq_,module,exports){
+},{}],81:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11485,7 +14757,7 @@ function isArguments(value) {
 
 module.exports = isArguments;
 
-},{}],55:[function(_dereq_,module,exports){
+},{}],82:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.4 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11667,7 +14939,7 @@ function isNative(value) {
 
 module.exports = isArray;
 
-},{}],56:[function(_dereq_,module,exports){
+},{}],83:[function(_dereq_,module,exports){
 /**
  * lodash 3.2.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11772,7 +15044,7 @@ function isPlainObject(value) {
 
 module.exports = isPlainObject;
 
-},{"lodash._basefor":57,"lodash.isarguments":54,"lodash.keysin":60}],57:[function(_dereq_,module,exports){
+},{"lodash._basefor":84,"lodash.isarguments":81,"lodash.keysin":87}],84:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.2 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11860,7 +15132,7 @@ function isObject(value) {
 
 module.exports = baseFor;
 
-},{}],58:[function(_dereq_,module,exports){
+},{}],85:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.2 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -11972,7 +15244,7 @@ function isTypedArray(value) {
 
 module.exports = isTypedArray;
 
-},{}],59:[function(_dereq_,module,exports){
+},{}],86:[function(_dereq_,module,exports){
 /**
  * lodash 3.1.2 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -12210,7 +15482,7 @@ function keysIn(object) {
 
 module.exports = keys;
 
-},{"lodash._getnative":53,"lodash.isarguments":54,"lodash.isarray":55}],60:[function(_dereq_,module,exports){
+},{"lodash._getnative":80,"lodash.isarguments":81,"lodash.isarray":82}],87:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.8 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -12344,7 +15616,7 @@ function keysIn(object) {
 
 module.exports = keysIn;
 
-},{"lodash.isarguments":54,"lodash.isarray":55}],61:[function(_dereq_,module,exports){
+},{"lodash.isarguments":81,"lodash.isarray":82}],88:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -12385,7 +15657,7 @@ function toPlainObject(value) {
 
 module.exports = toPlainObject;
 
-},{"lodash._basecopy":62,"lodash.keysin":60}],62:[function(_dereq_,module,exports){
+},{"lodash._basecopy":89,"lodash.keysin":87}],89:[function(_dereq_,module,exports){
 /**
  * lodash 3.0.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
@@ -12419,7 +15691,7 @@ function baseCopy(source, props, object) {
 
 module.exports = baseCopy;
 
-},{}],63:[function(_dereq_,module,exports){
+},{}],90:[function(_dereq_,module,exports){
 var JSZip, fs, internal;
 
 JSZip = _dereq_('jszip');
@@ -12438,7 +15710,7 @@ module.exports = {
 };
 
 
-},{"./internal":64,"jszip":13}],64:[function(_dereq_,module,exports){
+},{"./internal":91,"jszip":16}],91:[function(_dereq_,module,exports){
 (function (global,Buffer){
 var documentTemplate, fs, utils, _;
 
@@ -12512,7 +15784,7 @@ module.exports = {
 
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},_dereq_("buffer").Buffer)
-},{"./templates/document":65,"./utils":68,"buffer":1,"lodash.merge":46}],65:[function(_dereq_,module,exports){
+},{"./templates/document":92,"./utils":95,"buffer":1,"lodash.merge":73}],92:[function(_dereq_,module,exports){
 var _ = {escape: _dereq_("lodash.escape")};
 module.exports = function(obj){
 var __t,__p='',__j=Array.prototype.join,print=function(){__p+=__j.call(arguments,'');};
@@ -12542,7 +15814,7 @@ __p+='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document\n  xm
 return __p;
 };
 
-},{"lodash.escape":44}],66:[function(_dereq_,module,exports){
+},{"lodash.escape":71}],93:[function(_dereq_,module,exports){
 var _ = {escape: _dereq_("lodash.escape")};
 module.exports = function(obj){
 var __t,__p='',__j=Array.prototype.join,print=function(){__p+=__j.call(arguments,'');};
@@ -12556,7 +15828,7 @@ __p+='MIME-Version: 1.0\nContent-Type: multipart/related;\n    type="text/html";
 return __p;
 };
 
-},{"lodash.escape":44}],67:[function(_dereq_,module,exports){
+},{"lodash.escape":71}],94:[function(_dereq_,module,exports){
 var _ = {escape: _dereq_("lodash.escape")};
 module.exports = function(obj){
 var __t,__p='',__j=Array.prototype.join,print=function(){__p+=__j.call(arguments,'');};
@@ -12574,18 +15846,23 @@ __p+='------=mhtDocumentPart\nContent-Type: '+
 return __p;
 };
 
-},{"lodash.escape":44}],68:[function(_dereq_,module,exports){
-var mhtDocumentTemplate, mhtPartTemplate;
+},{"lodash.escape":71}],95:[function(_dereq_,module,exports){
+var cssInliner, mhtDocumentTemplate, mhtPartTemplate;
 
 mhtDocumentTemplate = _dereq_('./templates/mht_document');
 
 mhtPartTemplate = _dereq_('./templates/mht_part');
 
+cssInliner = _dereq_('juice');
+
 module.exports = {
   getMHTdocument: function(htmlSource) {
     var imageContentParts, _ref;
     _ref = this._prepareImageParts(htmlSource), htmlSource = _ref.htmlSource, imageContentParts = _ref.imageContentParts;
-    htmlSource = htmlSource.replace(/\=/g, '=3D');
+    htmlSource = cssInliner(htmlSource, {
+      preserveMediaQueries: true,
+      preserveFontFaces: true
+    }).replace(/\=/g, '=3D');
     return mhtDocumentTemplate({
       htmlSource: htmlSource,
       contentParts: imageContentParts.join('\n')
@@ -12627,6 +15904,6 @@ module.exports = {
 };
 
 
-},{"./templates/mht_document":66,"./templates/mht_part":67}]},{},[63])
-(63)
+},{"./templates/mht_document":93,"./templates/mht_part":94,"juice":48}]},{},[90])
+(90)
 });
