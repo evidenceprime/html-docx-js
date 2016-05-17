@@ -8,7 +8,7 @@ _prepareImageParts = (htmlSource) ->
   inlinedReplacer = (match, contentType, contentEncoding, encodedContent) ->
     index = imageContentParts.length
     extension = contentType.split('/')[1]
-    contentLocation = "file://fake/image#{index}.#{extension}"
+    contentLocation = "file:///C:/fake/image#{index}.#{extension}"
     imageContentParts.push mhtPartTemplate {contentType, contentEncoding, contentLocation, encodedContent}
     "\"#{contentLocation}\""
 
