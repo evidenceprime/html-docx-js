@@ -4,6 +4,7 @@ sinon = require 'sinon'
 chai.use require 'sinon-chai'
 internal = require '../build/internal'
 utils = require '../build/utils'
+CSSInliner = require '../build/css_inliner'
 
 describe 'Adding files', ->
   beforeEach ->
@@ -76,6 +77,192 @@ describe 'Coverting HTML to MHT', ->
     htmlSource = '<body style="width: 100%">This = 0</body>'
     expect(utils.getMHTdocument(htmlSource)).to.match
     '<body style=3D"width: 100%">This 3D= 0</body>'
+
+describe 'Inlining CSS', ->
+  it 'shouldn\'t fail if input html is not a valid HTML document or if it doesn\'t have styles', ->
+    htmlSourceNotValid = '<div></div>'
+    htmlSourceNoStyles = '<html><head><styles></styles></head><body></body></html>'
+    expect(CSSInliner.getInlinedHTML(htmlSourceNotValid)).to.be.equal htmlSourceNotValid
+    expect(CSSInliner.getInlinedHTML(htmlSourceNoStyles)).to.be.equal htmlSourceNoStyles
+
+  it 'should correctly parse HTML containing different kind of tags', ->
+    htmlSource = '<body><div><p>Test<input></p><br></div><div><img></div><script></script></body>'
+    CSSInliner.getInlinedHTML(htmlSource)
+    expect(CSSInliner._nodeCounter).to.be.equal 6
+
+  it 'should correctly build node object and register it', ->
+    htmlSource =
+    '<body>
+      <br>
+      <div></div>
+      <div>
+        <input>
+        <div id="id1" class="test test2" contenteditable="true" ></div>
+      </div>
+    </body>'
+    CSSInliner.getInlinedHTML(htmlSource)
+
+    expect(CSSInliner.nodes[1].tag).to.be.equal = 'div'
+    expect(CSSInliner.tag).to.include.keys 'div'
+    expect(CSSInliner.tag).to.include.keys 'input'
+    expect(CSSInliner.nodes[5].path).to.eql [1, 3]
+    expect(CSSInliner.nodes[5].classList).to.eql ['test', 'test2']
+    expect(CSSInliner.class).to.include.keys 'test2'
+    expect(CSSInliner.nodes[5].id).to.be.equal 'id1'
+    expect(CSSInliner.id).to.include.keys 'id1'
+    expect(CSSInliner.nodes[5].attr).to.eql [name: 'contenteditable', value: "\"true\""]
+    expect(CSSInliner.attr).to.include.keys 'contenteditable'
+    expect(CSSInliner.attr.contenteditable).to.eql "\"true\"": [5], "_all": [5]
+
+  it 'should correctly parse CSS styles', ->
+    htmlSource =
+    '<style>
+      div {
+        color: red;
+      }
+      table, div {margin: 100px;}
+      #id1 {
+        font-weight: bold;
+        padding: 0;
+      }
+      .test {
+        margin: 10px;
+      }
+      .test.test2 {
+        border: none;
+      }
+      [contenteditable] {
+        cursor: pointer
+      }
+    </style>'
+    CSSInliner.getInlinedHTML(htmlSource)
+    expect(Object.keys(CSSInliner.stylesObj)).to.be.have.length 6
+    expect(CSSInliner.stylesObj['div']).to.eql
+     declarations: color: 'red', margin: '100px'
+     specificity: 1
+    expect(CSSInliner.stylesObj['#id1']).to.eql
+     declarations: 'font-weight': 'bold', padding: '0'
+     specificity: 100
+    expect(CSSInliner.stylesObj['.test.test2'].specificity).to.be.equal 20
+
+  it 'should correctly determine selector type', ->
+    spy = sinon.spy(CSSInliner, '_getSelectorType')
+    CSSInliner.getNodesIdsByCSSSelector('.test.test2')
+    expect(spy.returned('class')).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('[contenteditable]')
+    expect(spy.returned('attr')).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('#id1')
+    expect(spy.returned('id')).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('div.some-class')
+    expect(spy.returned('tagWithClass')).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('div')
+    expect(spy.returned('tag')).to.be.true
+
+  it 'should correctly lookup with (multi-)class selector', ->
+    htmlSource =
+    '<body><div class="first">
+      <div></div>
+      <br>
+      <p><span></span></p>
+      <div class="first second"></div>
+      <div class="third">
+        <p class="first third"></p>
+      </div>
+      <div class="first second"></div>
+    </div></body>'
+    CSSInliner.getInlinedHTML(htmlSource)
+    spy = sinon.spy(CSSInliner, 'getNodesIdsByCSSSelector')
+    CSSInliner.getNodesIdsByCSSSelector('.first.second')
+    expect(spy.returned([6, 9])).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('.first.third')
+    expect(spy.returned([8])).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('.first')
+    expect(spy.returned([2, 6, 8, 9])).to.be.true
+
+  it 'should correctly lookup in deep DOM trees with complex CSS selectors', ->
+    htmlSource =
+    '<body>
+      <div class="l1"></div>
+      <div class="l1">
+        <div class="l2" contenteditable="false" readonly>
+          <p></p>
+          <input>
+        </div>
+        <div id="id1" class="l2">
+          <div class="l3">
+            <div class="l4">
+              <input>
+              <input disabled>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>'
+    CSSInliner.getInlinedHTML(htmlSource)
+    CSSInliner.getNodesIdsByCSSSelector('.l1 [contenteditable="false"] p')
+    expect(CSSInliner.getNodesIdsByCSSSelector.returned([5])).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('div[contenteditable]')
+    expect(CSSInliner.getNodesIdsByCSSSelector.returned([4])).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('.l1 .l2 input')
+    expect(CSSInliner.getNodesIdsByCSSSelector.returned([6, 10, 11])).to.be.true
+    CSSInliner.getNodesIdsByCSSSelector('#id1 .l3 .l4 input[disabled]')
+    expect(CSSInliner.getNodesIdsByCSSSelector.returned([11])).to.be.true
+
+  it 'should inline styles and produce resulting HTML string', ->
+    htmlSource =
+    '<style>
+      .l1 {
+        margin: 0;
+        border: 1px solid red;
+      }
+      .l2 {
+        color: blue;
+        font: Arial;
+      }
+      input {
+        width: 100px;
+      }
+      input[disabled] {
+        width: 10px;
+        line-height: 24px;
+      }
+      #div4 .l3 .l4 input[disabled] {
+        background-color: black;
+      }
+      .l1 [contenteditable="false"] p {
+        color: navy;
+      }
+      .l1.small {
+        color: red;
+      }
+    </style>
+    <body>
+      <div id="div1" class="l1"></div>
+      <div id="div2" class="l1">
+        <div id="div3" class="l2" contenteditable="false" readonly>
+          <p id="p1"></p>
+          <input id="input1">
+        </div>
+        <div id="div4" class="l2">
+          <div id="div5" class="l3">
+            <div id="div6" class="l4">
+              <input id="input2">
+              <input id="input3" disabled>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="div7" class="l1 small" style="font-weight: bold;"></div>
+    </body>'
+    inlinedHTML = CSSInliner.getInlinedHTML(htmlSource)
+    expect(inlinedHTML).to.be.length.above 0
+    expect(inlinedHTML).to.have.string '<div id="div7" class="l1 small" style="font-weight:
+      bold;margin:0;border:1px solid red;color:red;">'
+    expect(inlinedHTML).to.have.string '<input id="input1" style="width:100px;">'
+    expect(inlinedHTML).to.have.string '<input id="input3"
+    disabled style="width:10px;line-height:24px;background-color:black;">'
+
+
 
 describe 'Rendering the Word document', ->
   it 'should return a Word Processing ML file that embeds the altchunk', ->

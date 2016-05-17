@@ -1,10 +1,13 @@
 mhtDocumentTemplate = require './templates/mht_document'
 mhtPartTemplate = require './templates/mht_part'
+CSSInliner = require './css_inliner'
 
 module.exports =
   getMHTdocument: (htmlSource) ->
     # take care of images
     {htmlSource, imageContentParts} = @_prepareImageParts htmlSource
+    # inlines CSS rules from <style> tag as Word has limiations in processing CSS selectors
+    htmlSource = CSSInliner.getInlinedHTML htmlSource
     # for proper MHT parsing all '=' signs in html need to be replaced with '=3D'
     htmlSource = htmlSource.replace /\=/g, '=3D'
     mhtDocumentTemplate {htmlSource, contentParts: imageContentParts.join '\n'}
