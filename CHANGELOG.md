@@ -1,3 +1,7 @@
+## 0.3.1 (May 17, 2016)
+
+* Fixed support for embedding images on Microsoft Word for Mac 2016
+
 ## 0.3.0 (Sep 17, 2015)
 
 * Added support for embedded images. Please see `README.md` for details.
