@@ -2,6 +2,7 @@
   "name": "html-docx-js",
   "version": "0.3.1",
   "description": "Converts HTML documents to DOCX in the browser",
+  "browser": "dist/html-docx.js",
   "main": "dist/node/api.js",
   "repository": {
     "type": "git",
