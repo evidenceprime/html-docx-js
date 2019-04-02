@@ -2,14 +2,15 @@
   "name": "html-docx-js",
   "version": "0.3.1",
   "description": "Converts HTML documents to DOCX in the browser",
-  "main": "build/api.js",
+  "main": "dist/node/api.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/evidenceprime/html-docx-js.git"
   },
   "scripts": {
     "test": "gulp test-node",
-    "prepublish": "gulp clean; gulp build-node"
+    "prepublish": "gulp clean && gulp build-node",
+    "release": "gulp clean && gulp clean-release && gulp build && gulp build-node && gulp minify && gulp copy-release"
   },
   "browserify": {
     "transform": [
@@ -36,6 +37,7 @@
     "coffeeify": "^0.6.0",
     "del": "^1.2.0",
     "es5-shim": "^4.5.12",
+    "fs-extra": "^7.0.1",
     "gulp": "^3.8.5",
     "gulp-coffee": "^2.3.1",
     "gulp-lodash-template": "^0.1.0",
@@ -45,6 +47,7 @@
     "gulp-uglify": "^3.0.2",
     "gulp-util": "^2.2.19",
     "jstify": "^0.9.0",
+    "klaw-sync": "^6.0.0",
     "mocha": "^1.20.1",
     "pretty-hrtime": "^0.2.1",
     "readable-stream": "^3.3.0",

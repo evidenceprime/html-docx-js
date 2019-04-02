@@ -11,8 +11,10 @@ template = require 'gulp-lodash-template'
 coffee = require 'gulp-coffee'
 del = require 'del'
 uglify = require 'gulp-uglify'
-fs = require 'fs'
+fsExtra = require 'fs-extra'
 pipeline = require('readable-stream').pipeline
+walkSync = require 'klaw-sync'
+path = require 'path'
 
 startTime = null
 logger =
@@ -70,7 +72,7 @@ minify = ->
   builtFile = './build/html-docx.js'
   entry = './build/html-docx.min.js'
   dest = './build'
-  fs.copyFileSync builtFile, entry
+  fsExtra.copySync builtFile, entry
   pipeline(
     gulp.src(entry),
     uglify(),
@@ -99,5 +101,26 @@ gulp.task 'test-node-watch', ->
 gulp.task 'build-test-browserify', -> build(true)
 gulp.task 'run-phantomjs', -> gulp.src('test/testbed.html').pipe(mochaPhantomJS reporter: 'spec')
 gulp.task 'test-phantomjs', ['build-test-browserify', 'run-phantomjs']
+
+cleanRelease = (cb) ->
+  del 'dist', cb
+
+copyRelease = ->
+  jsFilesFilterFn = (item) ->
+    item.path.indexOf('.js') is item.path.length - '.js'.length
+
+  fsExtra.copySync './build/assets', './dist/node/assets'
+  templateFiles = walkSync './build/templates', filter: jsFilesFilterFn, noDir: true
+  templateFiles.forEach ({ path: filePath }) ->
+    fileName = path.basename(filePath)
+    fsExtra.copySync filePath, "./dist/node/templates/#{fileName}"
+  jsFiles = walkSync './build', filter: jsFilesFilterFn, noDir: true
+  jsFiles.forEach ({ path: filePath }) ->
+    fileName = path.basename(filePath)
+    outputPath = if fileName.indexOf('html-docx') isnt 0 then './dist/node' else './dist'
+    fsExtra.copySync filePath, "#{outputPath}/#{fileName}"
+
+gulp.task 'clean-release', cleanRelease
+gulp.task 'copy-release', copyRelease
 
 gulp.task 'default', ['test-node', 'test-node-watch']
