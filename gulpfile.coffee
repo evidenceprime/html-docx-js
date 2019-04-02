@@ -10,6 +10,9 @@ mochaPhantomJS = require 'gulp-mocha-phantomjs'
 template = require 'gulp-lodash-template'
 coffee = require 'gulp-coffee'
 del = require 'del'
+uglify = require 'gulp-uglify'
+fs = require 'fs'
+pipeline = require('readable-stream').pipeline
 
 startTime = null
 logger =
@@ -62,6 +65,18 @@ gulp.task 'clean', clean
 gulp.task 'setWatch', -> global.isWatching = true
 gulp.task 'build', -> build()
 gulp.task 'watch', ['setWatch', 'build']
+
+minify = ->
+  builtFile = './build/html-docx.js'
+  entry = './build/html-docx.min.js'
+  dest = './build'
+  fs.copyFileSync builtFile, entry
+  pipeline(
+    gulp.src(entry),
+    uglify(),
+    gulp.dest(dest)
+  )
+gulp.task 'minify', minify
 
 buildNode = (compileCoffee = true) ->
   logger.start()

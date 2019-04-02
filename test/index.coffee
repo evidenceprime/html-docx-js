@@ -59,7 +59,7 @@ describe 'Coverting HTML to MHT', ->
 
   it 'should detect any embedded image and change its source to ContentPart name', ->
     htmlSource = '<p><img src="data:image/jpeg;base64,PHN2ZyB..."></p>'
-    expect(utils.getMHTdocument(htmlSource)).to.match /<img src=3D"file:\/\/fake\/image0.jpeg">/
+    expect(utils.getMHTdocument(htmlSource)).to.match /<img src=3D"file:\/\/\/C:\/fake\/image0.jpeg">/
 
   it 'should produce ContentPart for each embedded image', ->
     htmlSource = '<p><img src="data:image/jpeg;base64,PHN2ZyB...">
@@ -70,7 +70,7 @@ describe 'Coverting HTML to MHT', ->
     imageParts.forEach (image, index) ->
       expect(image).to.match /Content-Type: image\/(jpeg|png|gif)/
       expect(image).to.match /Content-Transfer-Encoding: base64/
-      expect(image).to.have.string "Content-Location: file://fake/image#{index}."
+      expect(image).to.have.string "Content-Location: file:///C:/fake/image#{index}."
 
   it 'should replace = signs to 3D=', ->
     htmlSource = '<body style="width: 100%">This = 0</body>'

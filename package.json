@@ -18,10 +18,16 @@
     ]
   },
   "author": "Artur Nowak <artur.nowak@evidenceprime.com>",
-  "contributors": [{
-    "name": "Ievgen Martynov",
-    "email": "ievgen.martynov@gmail.com"
-  }],
+  "contributors": [
+    {
+      "name": "Ievgen Martynov",
+      "email": "ievgen.martynov@gmail.com"
+    },
+    {
+      "name": "Michał Ciołczyk",
+      "email": "michal.ciolczyk@evidenceprime.com"
+    }
+  ],
   "license": "MIT",
   "devDependencies": {
     "brfs": "^1.1.2",
@@ -29,16 +35,19 @@
     "chai": "^1.9.1",
     "coffeeify": "^0.6.0",
     "del": "^1.2.0",
+    "es5-shim": "^4.5.12",
     "gulp": "^3.8.5",
     "gulp-coffee": "^2.3.1",
     "gulp-lodash-template": "^0.1.0",
     "gulp-mocha": "^0.4.1",
     "gulp-mocha-phantomjs": "^0.3.0",
     "gulp-notify": "^1.4.0",
+    "gulp-uglify": "^3.0.2",
     "gulp-util": "^2.2.19",
     "jstify": "^0.9.0",
     "mocha": "^1.20.1",
     "pretty-hrtime": "^0.2.1",
+    "readable-stream": "^3.3.0",
     "sinon": "^1.10.2",
     "sinon-chai": "^2.5.0",
     "vinyl-source-stream": "^0.1.1",
@@ -46,8 +55,8 @@
   },
   "dependencies": {
     "jszip": "^2.3.0",
+    "juice": "^5.2.0",
     "lodash.escape": "^3.0.0",
-    "lodash.merge": "^3.2.0",
-    "juice": "git://github.com/evidenceprime/juice#master"
+    "lodash.merge": "^3.2.0"
   }
 }
