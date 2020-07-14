@@ -13066,6 +13066,28 @@ module.exports = {
         header: 720,
         footer: 720,
         gutter: 0
+      },
+      pageBorder: {
+        isShow: false,
+        offsetFrom: 'page',
+        display: 'allPages',
+        zOrder: 'front',
+        topBorderStyle: 'single',
+        topBorderWidth: 1,
+        topBorderSpacingOffset: 0,
+        topBorderColor: '000000',
+        bottomBorderStyle: 'single ',
+        bottomBorderWidth: 1,
+        bottomBorderSpacingOffset: 0,
+        bottomBorderColor: '000000',
+        leftBorderStyle: 'single',
+        leftBorderWidth: 1,
+        leftBorderSpacingOffset: 0,
+        leftBorderColor: '000000',
+        rightBorderStyle: 'single',
+        rightBorderWidth: 1,
+        rightBorderSpacingOffset: 0,
+        rightBorderColor: '000000'
       }
     }, (function() {
       switch (documentOptions.orientation) {
@@ -13083,7 +13105,8 @@ module.exports = {
           };
       }
     })(), {
-      margins: documentOptions.margins
+      margins: documentOptions.margins,
+      pageBorder: documentOptions.pageBorder
     });
     return documentTemplate(templateData);
   },
@@ -13121,7 +13144,16 @@ __p+='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document\n  xm
 ((__t=( margins.footer ))==null?'':__t)+
 '"\n               w:gutter="'+
 ((__t=( margins.gutter ))==null?'':__t)+
-'"/>\n    </w:sectPr>\n  </w:body>\n</w:document>\n';
+'"/>\n ';
+if (typeof pageBorder != 'undefined' && typeof pageBorder.isShow == 'boolean' && pageBorder.isShow) {
+  __p += `<w:pgBorders w:offsetFrom="${pageBorder.offsetFrom}" w:display="${pageBorder.display}" w:zOrder="${pageBorder.zOrder}">
+  <w:top w:val="${pageBorder.topBorderStyle}" w:sz="${pageBorder.topBorderWidth}" w:space="${pageBorder.topBorderSpacingOffset}" w:color="${pageBorder.topBorderColor}" />
+  <w:bottom w:val="${pageBorder.bottomBorderStyle}" w:sz="${pageBorder.bottomBorderWidth}" w:space="${pageBorder.bottomBorderSpacingOffset}" w:color="${pageBorder.bottompBorderColor}" />
+  <w:left w:val="${pageBorder.leftBorderStyle}" w:sz="${pageBorder.leftBorderWidth}" w:space="${pageBorder.leftBorderSpacingOffset}" w:color="${pageBorder.leftBorderColor}" />
+  <w:right w:val="${pageBorder.rightBorderStyle}" w:sz="${pageBorder.rightBorderWidth}" w:space="${pageBorder.rightBorderSpacingOffset}" w:color="${pageBorder.rightBorderColor}" />
+  </w:pgBorders> `;
+}
+__p += '  </w:sectPr>\n </w:body>\n</w:document>\n';
 }
 return __p;
 };
